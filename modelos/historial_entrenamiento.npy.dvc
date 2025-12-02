@@ -1,0 +1,5 @@
+outs:
+- md5: 148c52d47ae126bf7f2bb31df82b550c
+  size: 3096
+  hash: md5
+  path: historial_entrenamiento.npy

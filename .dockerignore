@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Data (comentar las que quieras incluir en la imagen)
+data/raw/*
+data/processed/*
+data/train_data/*
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose.yml
+
+# Environment files (NUNCA incluir en imagen)
+.env
+.env.*
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+
+# Documentation
+docs/
+*.md
+README*.md
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Source folder que ya copiamos en el build
+src/
+
+# Utils viejos
+utils/
+
+# Notebooks
+notebooks/

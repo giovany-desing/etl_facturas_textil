@@ -1,0 +1,131 @@
+name: Validación CI Crítica
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - master
+  pull_request:
+    branches:
+      - main
+      - develop
+      - master
+  workflow_dispatch:  # Permite ejecutar el workflow manualmente
+
+jobs:
+  ci-validation:
+    name: Ejecutar Validación CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: facturas_db
+          MYSQL_USER: facturas_user
+          MYSQL_PASSWORD: facturas_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=40s
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc \
+            g++ \
+            default-mysql-client \
+            git || true
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          # Asegurar dependencias de testing
+          pip install pytest pytest-cov moto httpx
+
+      - name: Set up environment variables
+        run: |
+          echo "TESTING=true" >> $GITHUB_ENV
+          echo "LOG_LEVEL=WARNING" >> $GITHUB_ENV
+          echo "MYSQL_HOST=localhost" >> $GITHUB_ENV
+          echo "MYSQL_PORT=3306" >> $GITHUB_ENV
+          echo "MYSQL_USER=facturas_user" >> $GITHUB_ENV
+          echo "MYSQL_PASSWORD=facturas_pass" >> $GITHUB_ENV
+          echo "MYSQL_DATABASE=facturas_db" >> $GITHUB_ENV
+          echo "TEXTIL_MYSQL_HOST=localhost" >> $GITHUB_ENV
+          echo "TEXTIL_MYSQL_PORT=3306" >> $GITHUB_ENV
+          echo "TEXTIL_MYSQL_USER=facturas_user" >> $GITHUB_ENV
+          echo "TEXTIL_MYSQL_PASSWORD=facturas_pass" >> $GITHUB_ENV
+          echo "TEXTIL_MYSQL_DATABASE=facturas_db" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=testing" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=testing" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+          echo "MLFLOW_TRACKING_URI=http://localhost:5001" >> $GITHUB_ENV
+
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL to be ready..."
+          for i in {1..90}; do
+            if mysqladmin ping -h 127.0.0.1 -u facturas_user -pfacturas_pass --silent 2>/dev/null; then
+              echo "✅ MySQL is ready"
+              mysqladmin ping -h 127.0.0.1 -u facturas_user -pfacturas_pass
+              break
+            fi
+            if [ $i -eq 90 ]; then
+              echo "⚠️ MySQL may not be fully ready, but continuing..."
+              break
+            else
+              echo "Waiting for MySQL... ($i/90)"
+              sleep 2
+            fi
+          done
+
+      - name: Verify MySQL connection
+        run: |
+          mysql -h 127.0.0.1 -u facturas_user -pfacturas_pass -e "SELECT 1" facturas_db || echo "MySQL connection check failed, but continuing..."
+
+      - name: Run CI Validation tests
+        run: |
+          set -e  # Salir si hay errores
+          # Verificar que los tests existen
+          if [ ! -f tests/test_ci_validation.py ]; then
+            echo "❌ ERROR: tests/test_ci_validation.py no encontrado"
+            echo "Este archivo es OBLIGATORIO para la validación CI"
+            exit 1
+          fi
+          # Ejecutar tests de validación CI (OBLIGATORIO que pasen)
+          pytest tests/test_ci_validation.py -v --tb=short --maxfail=1 || {
+            echo "❌ CI Validation FAILED - CD debe detenerse"
+            exit 1
+          }
+        continue-on-error: false
+
+      - name: Check validation results
+        if: always()
+        run: |
+          if [ -f .pytest_cache/v/cache/lastfailed ]; then
+            echo "❌ CI Validation FAILED - CD debe detenerse"
+            cat .pytest_cache/v/cache/lastfailed || true
+            exit 1
+          else
+            echo "✅ CI Validation PASSED - CD puede continuar"
+          fi

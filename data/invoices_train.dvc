@@ -1,0 +1,6 @@
+outs:
+- md5: 858d3c8a2d733daee045a20e0470cde6.dir
+  size: 16738428
+  nfiles: 319
+  hash: md5
+  path: invoices_train

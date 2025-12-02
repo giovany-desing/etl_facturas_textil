@@ -1,0 +1,106 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Models
+modelos/*.h5
+modelos/*.keras
+modelos/*.pkl
+models/*.h5
+models/*.keras
+
+# Data
+data/raw/*
+data/processed/*
+data/train_data/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/train_data/.gitkeep
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Google Cloud
+service-account-key.json
+*-key.json
+credentials.json
+token.json
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Airflow
+airflow.db
+airflow.cfg
+airflow-webserver.pid
+
+# Great Expectations
+uncommitted/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini

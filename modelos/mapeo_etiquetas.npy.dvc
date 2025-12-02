@@ -1,0 +1,5 @@
+outs:
+- md5: 064dac33e979ee9837d2ff16c7f8804b
+  size: 289
+  hash: md5
+  path: mapeo_etiquetas.npy

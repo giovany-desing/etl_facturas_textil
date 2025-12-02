@@ -1,0 +1,236 @@
+# Docker Compose para Airflow
+# Incluye todos los servicios necesarios para ejecutar los DAGs
+# Nota: El atributo 'version' fue removido porque está obsoleto en Docker Compose v2+
+
+services:
+  # ========== MySQL Database (LOCAL - Solo para Airflow y MLflow) ==========
+  # ⚠️ IMPORTANTE: Esta es la base de datos LOCAL en Docker
+  # Usada SOLO por Airflow y MLflow para metadatos y tracking de ML
+  # 
+  # El proyecto usa DOS bases de datos MySQL diferentes:
+  # 1. MySQL LOCAL (este servicio): Para Airflow y MLflow
+  #    - Bases: airflow, mlflow, facturas_db
+  #    - Usuario: facturas_user / facturas_pass
+  # 2. MySQL RDS (AWS): Para datos de negocio (ventas_preventivas, etc.)
+  #    - Base: textil
+  #    - Usuario: samaca / Mirringa2020
+  #    - Configurado en app/config.py y usado por la API
+  mysql:
+    image: mysql:8.0
+    container_name: facturas-mysql
+    restart: unless-stopped
+    # NO usar env_file aquí para evitar conflictos con variables de AWS RDS
+    environment:
+      # Credenciales HARDCODEADAS para MySQL local (NO usar variables del .env)
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: facturas_db
+      MYSQL_USER: facturas_user
+      MYSQL_PASSWORD: facturas_pass
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      
+    networks:
+      - facturas-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ========== MLflow Tracking Server ==========
+  mlflow:
+    image: python:3.11-slim
+    container_name: facturas-mlflow
+    restart: unless-stopped
+    env_file:
+      - ../.env  # Cargar variables de entorno desde .env en la raíz del proyecto
+    command: >
+      sh -c "apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* &&
+             pip install --no-cache-dir mlflow pymysql &&
+             mlflow server --backend-store-uri mysql+pymysql://facturas_user:facturas_pass@mysql:3306/mlflow --default-artifact-root /mlartifacts --host 0.0.0.0 --port 5001"
+    ports:
+      - "${MLFLOW_PORT:-5001}:5001"
+    volumes:
+      - mlflow-artifacts:/mlartifacts
+    networks:
+      - facturas-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # ========== FastAPI Application ==========
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: facturas-api:latest
+    container_name: facturas-api
+    restart: unless-stopped
+    env_file:
+      - ../.env  # Cargar variables de entorno desde .env en la raíz del proyecto
+    environment:
+      # ========== BASE DE DATOS AWS RDS (DATOS DE NEGOCIO) ==========
+      # ⚠️ IMPORTANTE: La API se conecta a MySQL RDS en AWS, NO al MySQL local
+      # Tablas: ventas_preventivas, ventas_correctivas, tracking
+      # Estas variables se cargan desde .env o usan los valores por defecto
+      MYSQL_HOST: ${MYSQL_HOST:-textil.cof2oucystyr.us-east-1.rds.amazonaws.com}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-samaca}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Mirringa2020}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-textil}
+
+      # MLflow
+      MLFLOW_TRACKING_URI: http://mlflow:5001
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-facturas_classification}
+
+      # Google Cloud
+      GOOGLE_CREDENTIALS_PATH: /app/credentials.json
+
+      # AWS (para DVC y S3) - Las variables se cargan desde env_file (.env)
+      # No definir aquí para evitar sobrescribir con valores vacíos
+
+      # AWS RDS Textil (duplicado para compatibilidad, pero usa las mismas variables)
+      # Estas variables son redundantes, pero se mantienen por compatibilidad
+      TEXTIL_MYSQL_HOST: ${MYSQL_HOST:-textil.cof2oucystyr.us-east-1.rds.amazonaws.com}
+      TEXTIL_MYSQL_PORT: ${MYSQL_PORT:-3306}
+      TEXTIL_MYSQL_USER: ${MYSQL_USER:-samaca}
+      TEXTIL_MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Mirringa2020}
+      TEXTIL_MYSQL_DATABASE: ${MYSQL_DATABASE:-textil}
+
+      # Configuración general
+      DEBUG: ${DEBUG:-False}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      BASE_DIR: /app
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      # Código (montar completo para que Airflow pueda importar)
+      - ../:/app:rw
+
+      # Credenciales
+      - ../credentials.json:/app/credentials.json:ro
+      - ../token.json:/app/token.json:rw
+    networks:
+      - facturas-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      # Usar urllib que viene con Python por defecto (no requiere requests)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ========== Airflow ==========
+  airflow:
+    image: apache/airflow:2.8.0-python3.11
+    container_name: facturas-airflow
+    restart: unless-stopped
+    env_file:
+      - ../.env  # Cargar variables de entorno desde .env en la raíz del proyecto
+    environment:
+      # Airflow Core
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-bdnGt5yCAurfDAeL9evxn1S4tcHaZxQoLcR_3mLFnQo=}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-yUeqHFoqQTYRMSjxUYzUKE4zgTFS-HxP5tvnwddPqsk}
+      # MySQL LOCAL (hardcodeado, NO usar variables de AWS RDS)
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://facturas_user:facturas_pass@mysql:3306/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
+      
+      # DAGs
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__PLUGINS_FOLDER: /opt/airflow/plugins
+      
+      # Logging
+      AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+      
+      # AWS (para DVC en drift_dag)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      
+      # Google Drive (para drift_dag)
+      GOOGLE_CREDENTIALS_PATH: /app/credentials.json
+      GOOGLE_TOKEN_PATH: /app/token.json
+      
+      # Python path para importar el proyecto
+      PYTHONPATH: /app
+    volumes:
+      # DAGs
+      - ../airflow/dags:/opt/airflow/dags:ro
+      
+      # Logs
+      - airflow-logs:/opt/airflow/logs
+      
+      # Proyecto completo (para imports)
+      - ../:/app:ro
+      
+      # Credenciales
+      - ../credentials.json:/app/credentials.json:ro
+      - ../token.json:/app/token.json:rw
+      
+      # Modelos (para baseline de drift)
+      - ../modelos:/app/modelos:rw
+      
+      # Script de inicialización (rw para poder cambiar permisos)
+      - ./airflow-init.sh:/opt/airflow/scripts/airflow-init.sh:rw
+    ports:
+      - "8080:8080"
+    networks:
+      - facturas-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command: >
+      "
+      set -e &&
+      echo '=== INSTALANDO DEPENDENCIAS PRIMERO ===' &&
+      pip install --no-cache-dir pymysql numpy scipy opencv-python-headless pdf2image Pillow pandas google-api-python-client google-auth-httplib2 google-auth-oauthlib requests &&
+      echo '=== VERIFICANDO PYMYSQL ===' &&
+      python3 -c 'import pymysql; print(\"✅ pymysql instalado\")' &&
+      echo '=== EJECUTANDO SCRIPT DE INICIALIZACIÓN ===' &&
+      bash /opt/airflow/scripts/airflow-init.sh
+      "
+    healthcheck:
+      # Healthcheck simple que NO requiere pymysql (solo verifica que el webserver esté corriendo)
+      # El script airflow-init.sh instala pymysql antes de iniciar los servicios
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s  # Aumentado a 5 minutos para dar tiempo a instalar dependencias e inicializar
+
+# ========== Networks ==========
+networks:
+  facturas-network:
+    driver: bridge
+    name: facturas-network
+
+# ========== Volumes (datos persistentes) ==========
+volumes:
+  mysql-data:
+    name: facturas-mysql-data
+  mlflow-artifacts:
+    name: facturas-mlflow-artifacts
+  airflow-logs:
+    name: facturas-airflow-logs
+
+
