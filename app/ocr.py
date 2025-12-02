@@ -200,21 +200,21 @@ def procesar_carpeta_facturas(nombre_carpeta: str) -> Dict[str, Dict]:
         
         # Validar datos antes de insertar
         if not orden_compra:
-            logger.error(f"⚠️  No se pudo extraer orden de compra de {pdf_path.name}. Saltando inserción.")
+            logger.error(f"  No se pudo extraer orden de compra de {pdf_path.name}. Saltando inserción.")
             resultados[pdf_path.name] = resultado
             continue
         
         if not productos or len(productos) == 0:
-            logger.warning(f"⚠️  No se encontraron productos en {pdf_path.name}. Saltando inserción de productos.")
+            logger.warning(f"  No se encontraron productos en {pdf_path.name}. Saltando inserción de productos.")
         else:
             # Insertar en MySQL
             nombre_tabla = "ventas_preventivas" if nombre_carpeta == "prev" else "ventas_correctivas"
             logger.info(f"💾 Insertando orden {orden_compra} en MySQL (tabla: {nombre_tabla})...")
             exito_fecha = database.actualizar_orden_fecha(orden_compra, fecha_creacion, productos, cantidades, totales, nombre_carpeta)
             if exito_fecha:
-                logger.info(f"✅ Orden {orden_compra} insertada exitosamente en {nombre_tabla}")
+                logger.info(f" Orden {orden_compra} insertada exitosamente en {nombre_tabla}")
             else:
-                logger.error(f"❌ Error al insertar orden {orden_compra} en {nombre_tabla}")
+                logger.error(f" Error al insertar orden {orden_compra} en {nombre_tabla}")
         
         # Nota: El total ya se guarda en cada registro de producto, no necesita tabla separada
         logger.debug(f"Total de orden {orden_compra}: ${total:,.2f} (ya incluido en cada producto)")

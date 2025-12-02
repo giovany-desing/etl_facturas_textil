@@ -6,9 +6,15 @@ echo "🚀 Iniciando script de inicialización de Airflow"
 echo "=========================================="
 
 echo "🔧 Instalando dependencias necesarias..."
+# Instalar numpy primero con versión compatible para pyarrow
+pip install --no-cache-dir "numpy<2.0" 2>&1
+
+# Instalar pyarrow con versión compatible (requerido por google.cloud.bigquery)
+pip install --no-cache-dir "pyarrow>=10.0.0,<16.0.0" 2>&1
+
+# Instalar el resto de dependencias
 pip install --no-cache-dir \
     pymysql \
-    numpy \
     scipy \
     opencv-python-headless \
     pdf2image \

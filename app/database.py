@@ -147,9 +147,9 @@ def create_tables():
     """Crea todas las tablas en la base de datos"""
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Tablas MySQL creadas exitosamente")
+        logger.info(" Tablas MySQL creadas exitosamente")
     except Exception as e:
-        logger.error(f"❌ Error creando tablas: {e}")
+        logger.error(f" Error creando tablas: {e}")
         raise
 
 
@@ -219,7 +219,7 @@ def actualizar_orden_fecha(
             VentaModel.orden_compra == orden_compra_int
         ).delete()
         if registros_eliminados > 0:
-            logger.info(f"🗑️  Eliminados {registros_eliminados} registros antiguos de orden {orden_compra_int}")
+            logger.info(f"  Eliminados {registros_eliminados} registros antiguos de orden {orden_compra_int}")
 
         # Insertar nuevos registros (uno por cada producto)
         registros_insertados = 0
@@ -242,12 +242,12 @@ def actualizar_orden_fecha(
             logger.debug(f"  → Producto agregado: {producto} (cantidad: {cantidad}, total: {total_float})")
 
         db.commit()
-        logger.info(f"✅ Orden {orden_compra_int} procesada en {nombre_tabla}: {registros_insertados} productos insertados")
+        logger.info(f" Orden {orden_compra_int} procesada en {nombre_tabla}: {registros_insertados} productos insertados")
         return True
 
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Error procesando orden {orden_compra} en {nombre_tabla}: {e}", exc_info=True)
+        logger.error(f" Error procesando orden {orden_compra} en {nombre_tabla}: {e}", exc_info=True)
         return False
     finally:
         db.close()
@@ -525,19 +525,19 @@ def insertar_tracking_entrenamiento(
         db.add(tracking)
         db.commit()
         
-        logger.info("✅ Tracking de entrenamiento guardado exitosamente en la tabla 'tracking'")
-        logger.info(f"   📊 ID: {tracking.id}")
+        logger.info(" Tracking de entrenamiento guardado exitosamente en la tabla 'tracking'")
+        logger.info(f"    ID: {tracking.id}")
         logger.info(f"   📅 Fecha: {tracking.created_at}")
         logger.info(f"   🎯 Test Accuracy: {tracking.test_accuracy:.6f}" if tracking.test_accuracy else "   🎯 Test Accuracy: N/A")
         logger.info(f"   📈 Val Accuracy Final: {tracking.val_accuracy_final:.6f}" if tracking.val_accuracy_final else "   📈 Val Accuracy Final: N/A")
         logger.info(f"   🔗 Git Hash: {tracking.git_commit_hash_short}" if tracking.git_commit_hash_short else "   🔗 Git Hash: N/A")
-        logger.info(f"   📦 DVC Hash: {tracking.dvc_hash_short}" if tracking.dvc_hash_short else "   📦 DVC Hash: N/A")
+        logger.info(f"    DVC Hash: {tracking.dvc_hash_short}" if tracking.dvc_hash_short else "    DVC Hash: N/A")
         
         return True
         
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Error guardando tracking de entrenamiento: {e}", exc_info=True)
+        logger.error(f" Error guardando tracking de entrenamiento: {e}", exc_info=True)
         return False
     finally:
         db.close()

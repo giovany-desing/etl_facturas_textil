@@ -56,9 +56,9 @@ def verificar_estructura_proyecto_preprocesamiento(): # -->>check
     
     for carpeta in carpetas_requeridas:
         if os.path.exists(carpeta):
-            logger.info(f"✅ Carpeta encontrada: {carpeta}")
+            logger.info(f" Carpeta encontrada: {carpeta}")
         else:
-            logger.error(f"❌ Carpeta no encontrada: {carpeta}")
+            logger.error(f" Carpeta no encontrada: {carpeta}")
             return False
     
     # Verificar subcarpetas de etiquetas (0 y 1)
@@ -67,24 +67,24 @@ def verificar_estructura_proyecto_preprocesamiento(): # -->>check
         carpeta_prueba_etiqueta = os.path.join(CARPETA_PRUEBA, etiqueta)
         
         if os.path.exists(carpeta_entrenamiento_etiqueta):
-            logger.info(f"✅ Subcarpeta encontrada: invoices_train/{etiqueta}")
+            logger.info(f" Subcarpeta encontrada: invoices_train/{etiqueta}")
             # Contar archivos en la subcarpeta
             archivos = []
             for ext in EXTENSIONES_PERMITIDAS:
                 archivos.extend([f for f in os.listdir(carpeta_entrenamiento_etiqueta) if f.lower().endswith(ext)])
-            logger.info(f"   📁 {len(archivos)} archivos en invoices_train/{etiqueta}")
+            logger.info(f"    {len(archivos)} archivos en invoices_train/{etiqueta}")
         else:
-            logger.warning(f"⚠️ Subcarpeta no encontrada: invoices_train/{etiqueta}")
+            logger.warning(f" Subcarpeta no encontrada: invoices_train/{etiqueta}")
             
         if os.path.exists(carpeta_prueba_etiqueta):
-            logger.info(f"✅ Subcarpeta encontrada: invoices_test/{etiqueta}")
+            logger.info(f" Subcarpeta encontrada: invoices_test/{etiqueta}")
             # Contar archivos en la subcarpeta
             archivos = []
             for ext in EXTENSIONES_PERMITIDAS:
                 archivos.extend([f for f in os.listdir(carpeta_prueba_etiqueta) if f.lower().endswith(ext)])
-            logger.info(f"   📁 {len(archivos)} archivos en invoices_test/{etiqueta}")
+            logger.info(f"    {len(archivos)} archivos en invoices_test/{etiqueta}")
         else:
-            logger.warning(f"⚠️ Subcarpeta no encontrada: invoices_test/{etiqueta}")
+            logger.warning(f" Subcarpeta no encontrada: invoices_test/{etiqueta}")
     
     return True
 
@@ -132,7 +132,7 @@ def pdf_a_imagen_preprocesamiento(pdf_path, dpi=200): # -->> check
         if imagenes:
             imagen = imagenes[0]
             
-            # ✅ CORRECCIÓN: Detectar y convertir escala de grises falsa
+            #  CORRECCIÓN: Detectar y convertir escala de grises falsa
             if hasattr(imagen, 'mode') and imagen.mode == 'RGB':
                 # Convertir a array para verificar canales
                 img_array = np.array(imagen)
@@ -142,7 +142,7 @@ def pdf_a_imagen_preprocesamiento(pdf_path, dpi=200): # -->> check
                     np.array_equal(img_array[:,:,0], img_array[:,:,1]) and 
                     np.array_equal(img_array[:,:,1], img_array[:,:,2])):
                     
-                    logger.debug(f"🔧 Convirtiendo RGB falso a escala de grises real: {os.path.basename(pdf_path)}")
+                    logger.debug(f" Convirtiendo RGB falso a escala de grises real: {os.path.basename(pdf_path)}")
                     # Convertir a escala de grises real y luego a RGB
                     imagen_gris = imagen.convert('L')
                     imagen = imagen_gris.convert('RGB')
@@ -200,16 +200,16 @@ def convertir_a_rgb_preprocesamiento(imagen):
         imagen = np.array(imagen)
         logger.debug(f"Convertida PIL Image a numpy: {imagen.shape}")
     
-    # ✅ CORRECCIÓN: Detección más simple de canales idénticos
+    #  CORRECCIÓN: Detección más simple de canales idénticos
     if len(imagen.shape) == 3 and imagen.shape[2] == 3:
         # Verificación rápida de canales idénticos
         if np.array_equal(imagen[:,:,0], imagen[:,:,1]):
-            logger.warning("⚠️ Detectado RGB con canales idénticos. Forzando conversión...")
+            logger.warning(" Detectado RGB con canales idénticos. Forzando conversión...")
             # Tomar primer canal y convertir a RGB real
             imagen = imagen[:,:,0]
             return cv2.cvtColor(imagen, cv2.COLOR_GRAY2RGB)
         else:
-            logger.debug("✅ Imagen ya es RGB con canales diferentes")
+            logger.debug(" Imagen ya es RGB con canales diferentes")
             return imagen
     
     elif len(imagen.shape) == 2:
@@ -270,7 +270,7 @@ def preprocesar_imagen_completo_preprocesamiento(imagen):
             logger.error(f"FORMA INCORRECTA: {img_normalizada.shape} vs esperado: {expected_shape}")
             return None
         
-        logger.debug("✅ Preprocesamiento de imagen completado exitosamente")
+        logger.debug(" Preprocesamiento de imagen completado exitosamente")
         return img_normalizada
         
     except Exception as e:
@@ -383,9 +383,9 @@ def preprocesar_conjunto_datos_preprocesamiento(carpeta_base, nombre_conjunto="e
                 
             imagenes.append(caracteristicas)
             etiquetas_validas.append(etiqueta)
-            logger.debug(f"✅ Procesado exitosamente: {nombre_archivo} - Forma: {caracteristicas.shape}")
+            logger.debug(f" Procesado exitosamente: {nombre_archivo} - Forma: {caracteristicas.shape}")
         else:
-            logger.error(f"❌ Error al procesar: {nombre_archivo}")
+            logger.error(f" Error al procesar: {nombre_archivo}")
             errores += 1
     
     tasa_exito = (len(imagenes) / len(rutas)) * 100 if len(rutas) > 0 else 0
@@ -467,7 +467,7 @@ def verificar_calidad_preprocesamiento_preprocesamiento(imagenes, etiquetas, nom
     sample_shape = imagenes[0].shape
     
     if sample_shape != expected_shape:
-        logger.error(f"❌ Forma incorrecta: {sample_shape} vs esperado: {expected_shape}")
+        logger.error(f" Forma incorrecta: {sample_shape} vs esperado: {expected_shape}")
         return False
     
     # Verificar canales
@@ -482,18 +482,18 @@ def verificar_calidad_preprocesamiento_preprocesamiento(imagenes, etiquetas, nom
         iguales_2_3 = np.array_equal(canal2, canal3)
         
         if iguales_1_2 and iguales_2_3:
-            logger.error("❌ PROBLEMA CRÍTICO: Los 3 canales son IDÉNTICOS")
+            logger.error(" PROBLEMA CRÍTICO: Los 3 canales son IDÉNTICOS")
             logger.error("   Las imágenes tienen escala de grises repetida 3 veces")
             return False
         else:
-            logger.info("✅ Canales correctos: RGB real con canales diferentes")
+            logger.info(" Canales correctos: RGB real con canales diferentes")
     
     # Verificar distribución de etiquetas
     etiquetas_array = np.array(etiquetas)
     conteo_etiquetas = {etiqueta: np.sum(etiquetas_array == etiqueta) for etiqueta in [0, 1]}
     logger.info(f"Distribución de etiquetas verificada: {conteo_etiquetas}")
     
-    logger.info("✅ Preprocesamiento de calidad verificado")
+    logger.info(" Preprocesamiento de calidad verificado")
     return True
 
 def guardar_datos_preprocesados_preprocesamiento(X_entrenamiento, y_entrenamiento, X_prueba, y_prueba, prefijo="facturas"):
@@ -579,8 +579,8 @@ def ejecutar_preprocesamiento_completo():
     
     # Resumen final
     logger.info("=== RESUMEN FINAL DEL PREPROCESAMIENTO ===")
-    logger.info(f"Datos de entrenamiento: {len(X_entrenamiento)} imágenes - Calidad: {'✅' if calidad_entrenamiento else '❌'}")
-    logger.info(f"Datos de prueba: {len(X_prueba)} imágenes - Calidad: {'✅' if calidad_prueba else '❌'}")
+    logger.info(f"Datos de entrenamiento: {len(X_entrenamiento)} imágenes - Calidad: {'' if calidad_entrenamiento else ''}")
+    logger.info(f"Datos de prueba: {len(X_prueba)} imágenes - Calidad: {'' if calidad_prueba else ''}")
     
     if len(X_entrenamiento) > 0:
         logger.info(f"  - Forma: {X_entrenamiento.shape}")
@@ -595,9 +595,9 @@ def ejecutar_preprocesamiento_completo():
         logger.info(f"  - Distribución prueba: {conteo_etiquetas}")
     
     if not calidad_entrenamiento or not calidad_prueba:
-        logger.error("❌ PROBLEMA DE CALIDAD DETECTADO - Revisa los logs anteriores")
+        logger.error(" PROBLEMA DE CALIDAD DETECTADO - Revisa los logs anteriores")
     else:
-        logger.info("✅ Preprocesamiento completado con CALIDAD VERIFICADA")
+        logger.info(" Preprocesamiento completado con CALIDAD VERIFICADA")
     
     return X_entrenamiento, y_entrenamiento, X_prueba, y_prueba
 

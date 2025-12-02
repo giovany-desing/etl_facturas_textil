@@ -83,16 +83,16 @@ def limpiar_carpeta_temporal(ruta_carpeta: str, nombre_carpeta: str = None) -> b
         if os.path.exists(ruta_carpeta):
             if os.path.isdir(ruta_carpeta):
                 shutil.rmtree(ruta_carpeta)
-                logger.info(f"✅ Carpeta temporal eliminada: {nombre}")
+                logger.info(f" Carpeta temporal eliminada: {nombre}")
                 return True
             else:
-                logger.warning(f"⚠️  La ruta existe pero no es una carpeta: {ruta_carpeta}")
+                logger.warning(f"  La ruta existe pero no es una carpeta: {ruta_carpeta}")
                 return False
         else:
-            logger.debug(f"📁 Carpeta no existe (ya fue limpiada): {nombre}")
+            logger.debug(f" Carpeta no existe (ya fue limpiada): {nombre}")
             return True
     except Exception as e:
-        logger.error(f"❌ Error al eliminar carpeta {nombre}: {str(e)}")
+        logger.error(f" Error al eliminar carpeta {nombre}: {str(e)}")
         return False
 
 
@@ -114,7 +114,7 @@ def limpiar_carpetas_entrenamiento():
     for carpeta in carpetas_a_limpiar:
         limpiar_carpeta_temporal(carpeta)
     
-    logger.info("✅ Limpieza de carpetas de entrenamiento completada")
+    logger.info(" Limpieza de carpetas de entrenamiento completada")
 
 
 def limpiar_carpetas_procesamiento():
@@ -135,7 +135,7 @@ def limpiar_carpetas_procesamiento():
     for carpeta in carpetas_a_limpiar:
         limpiar_carpeta_temporal(carpeta)
     
-    logger.info("✅ Limpieza de carpetas de procesamiento completada")
+    logger.info(" Limpieza de carpetas de procesamiento completada")
 
 
 def limpiar_carpeta_bentoml():
@@ -158,16 +158,16 @@ def verificar_conexion_drive() -> Tuple[bool, str]:
         tuple[bool, str]: (éxito, mensaje)
     """
     try:
-        logger.info("🔍 Verificando conexión a Google Drive...")
+        logger.info(" Verificando conexión a Google Drive...")
         drive_service = drive.autenticar_drive()
         # Intentar obtener información del usuario para verificar conexión
         about = drive_service.about().get(fields="user").execute()
         user_email = about.get('user', {}).get('emailAddress', 'Desconocido')
-        logger.info(f"✅ Conexión a Google Drive exitosa. Usuario: {user_email}")
+        logger.info(f" Conexión a Google Drive exitosa. Usuario: {user_email}")
         return True, f"Conexión exitosa. Usuario: {user_email}"
     except Exception as e:
         error_msg = f"Error al conectar con Google Drive: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
 
 
@@ -179,17 +179,17 @@ def verificar_conexion_mysql() -> Tuple[bool, str]:
         tuple[bool, str]: (éxito, mensaje)
     """
     try:
-        logger.info("🔍 Verificando conexión a MySQL...")
+        logger.info(" Verificando conexión a MySQL...")
         from sqlalchemy import text
         db = database.get_db()
         # Ejecutar query simple para verificar conexión
         db.execute(text("SELECT 1"))
         db.close()
-        logger.info("✅ Conexión a MySQL exitosa")
+        logger.info(" Conexión a MySQL exitosa")
         return True, "Conexión exitosa"
     except Exception as e:
         error_msg = f"Error al conectar con MySQL: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
 
 
@@ -201,7 +201,7 @@ def verificar_conexion_s3() -> Tuple[bool, str]:
         tuple[bool, str]: (éxito, mensaje)
     """
     try:
-        logger.info("🔍 Verificando conexión a AWS S3...")
+        logger.info(" Verificando conexión a AWS S3...")
         from app import s3_utils
         
         # Intentar obtener cliente S3
@@ -209,23 +209,23 @@ def verificar_conexion_s3() -> Tuple[bool, str]:
         
         if s3_client is None:
             error_msg = "No se pudo crear cliente S3. Verifica las credenciales de AWS."
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         # Intentar listar el bucket para verificar conexión
         try:
             bucket_name = settings.S3_BUCKET_NAME
             s3_client.head_bucket(Bucket=bucket_name)
-            logger.info(f"✅ Conexión a S3 exitosa. Bucket: {bucket_name}")
+            logger.info(f" Conexión a S3 exitosa. Bucket: {bucket_name}")
             return True, f"Conexión exitosa. Bucket: {bucket_name}"
         except Exception as e:
             error_msg = f"Error al acceder al bucket S3 '{bucket_name}': {str(e)}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
             
     except Exception as e:
         error_msg = f"Error al verificar conexión con S3: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
 
 
@@ -237,12 +237,12 @@ def verificar_modelo_h5() -> Tuple[bool, str, Optional[str]]:
         tuple[bool, str, Optional[str]]: (existe, mensaje, ruta_modelo)
     """
     try:
-        logger.info("🔍 Verificando existencia de modelo .h5...")
+        logger.info(" Verificando existencia de modelo .h5...")
         carpeta_modelos = os.path.join(settings.BASE_DIR, settings.MODELS_DIR)
         
         if not os.path.exists(carpeta_modelos):
             error_msg = f"No se encontró la carpeta {carpeta_modelos}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg, None
         
         # Buscar modelos .h5
@@ -250,7 +250,7 @@ def verificar_modelo_h5() -> Tuple[bool, str, Optional[str]]:
         
         if not modelos_disponibles:
             error_msg = f"No se encontraron modelos .h5 en {carpeta_modelos}"
-            logger.warning(f"⚠️  {error_msg}")
+            logger.warning(f"  {error_msg}")
             return False, error_msg, None
         
         # Orden de preferencia
@@ -269,12 +269,12 @@ def verificar_modelo_h5() -> Tuple[bool, str, Optional[str]]:
         if ruta_modelo is None:
             ruta_modelo = os.path.join(carpeta_modelos, modelos_disponibles[0])
         
-        logger.info(f"✅ Modelo encontrado: {os.path.basename(ruta_modelo)}")
+        logger.info(f" Modelo encontrado: {os.path.basename(ruta_modelo)}")
         return True, f"Modelo encontrado: {os.path.basename(ruta_modelo)}", ruta_modelo
         
     except Exception as e:
         error_msg = f"Error al verificar modelo: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg, None
 
 
@@ -286,14 +286,14 @@ def descargar_modelo_dvc() -> Tuple[bool, str]:
         tuple[bool, str]: (éxito, mensaje)
     """
     try:
-        logger.info("📥 Descargando modelo desde S3 con DVC pull...")
+        logger.info(" Descargando modelo desde S3 con DVC pull...")
         
         # Verificar que DVC está instalado
         try:
             subprocess.run(['dvc', '--version'], check=True, capture_output=True, timeout=5)
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             error_msg = "DVC no está instalado o no está disponible"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         carpeta_modelos = os.path.join(settings.BASE_DIR, settings.MODELS_DIR)
@@ -329,14 +329,14 @@ def descargar_modelo_dvc() -> Tuple[bool, str]:
         
         if resultado_remote.returncode != 0 or not resultado_remote.stdout.strip():
             error_msg = "No hay remotes configurados en DVC. Configura un remote de S3 antes de hacer pull."
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         logger.info(f"Remotes disponibles: {resultado_remote.stdout.strip()}")
         
         if not archivos_dvc:
             # Si no hay archivos .dvc específicos, intentar dvc pull general (descarga todo)
-            logger.warning("⚠️  No se encontraron archivos .dvc específicos de modelos. Intentando dvc pull general...")
+            logger.warning("  No se encontraron archivos .dvc específicos de modelos. Intentando dvc pull general...")
             resultado = subprocess.run(
                 ['dvc', 'pull'],
                 cwd=settings.BASE_DIR,
@@ -364,20 +364,20 @@ def descargar_modelo_dvc() -> Tuple[bool, str]:
             )
         
         if resultado.returncode == 0:
-            logger.info("✅ Modelo descargado exitosamente desde S3 con DVC")
+            logger.info(" Modelo descargado exitosamente desde S3 con DVC")
             return True, "Modelo descargado exitosamente desde S3"
         else:
             error_msg = f"Error al ejecutar dvc pull: {resultado.stderr}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
             
     except subprocess.TimeoutExpired:
         error_msg = "Timeout al ejecutar dvc pull (más de 10 minutos)"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
     except Exception as e:
         error_msg = f"Error inesperado al descargar modelo con DVC: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
 
 
@@ -392,20 +392,20 @@ def subir_modelo_dvc(ruta_modelo: str) -> Tuple[bool, str]:
         tuple[bool, str]: (éxito, mensaje)
     """
     try:
-        logger.info(f"📤 Subiendo modelo a S3 con DVC: {ruta_modelo}")
+        logger.info(f" Subiendo modelo a S3 con DVC: {ruta_modelo}")
         
         # Verificar que DVC está instalado
         try:
             subprocess.run(['dvc', '--version'], check=True, capture_output=True, timeout=5)
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             error_msg = "DVC no está instalado o no está disponible"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         # Verificar que el archivo existe
         if not os.path.exists(ruta_modelo):
             error_msg = f"El archivo del modelo no existe: {ruta_modelo}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         # Obtener nombre del archivo y ruta relativa del modelo desde la raíz del proyecto
@@ -424,10 +424,10 @@ def subir_modelo_dvc(ruta_modelo: str) -> Tuple[bool, str]:
         
         if resultado_add.returncode != 0:
             error_msg = f"Error al ejecutar dvc add: {resultado_add.stderr}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
-        logger.info("✅ dvc add ejecutado exitosamente")
+        logger.info(" dvc add ejecutado exitosamente")
         
         # Verificar que hay un remote configurado antes de hacer push
         logger.info("Verificando configuración de remote de DVC...")
@@ -441,7 +441,7 @@ def subir_modelo_dvc(ruta_modelo: str) -> Tuple[bool, str]:
         
         if resultado_remote.returncode != 0 or not resultado_remote.stdout.strip():
             error_msg = "No hay remotes configurados en DVC. Configura un remote de S3 antes de hacer push."
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
         
         logger.info(f"Remotes disponibles: {resultado_remote.stdout.strip()}")
@@ -457,20 +457,20 @@ def subir_modelo_dvc(ruta_modelo: str) -> Tuple[bool, str]:
         )
         
         if resultado_push.returncode == 0:
-            logger.info("✅ Modelo subido exitosamente a S3 con DVC")
+            logger.info(" Modelo subido exitosamente a S3 con DVC")
             return True, f"Modelo {nombre_archivo} subido exitosamente a S3"
         else:
             error_msg = f"Error al ejecutar dvc push: {resultado_push.stderr}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return False, error_msg
             
     except subprocess.TimeoutExpired:
         error_msg = "Timeout al ejecutar dvc push (más de 10 minutos)"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
     except Exception as e:
         error_msg = f"Error inesperado al subir modelo con DVC: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, error_msg
 
 
@@ -497,7 +497,7 @@ def verificar_prerequisitos_entrenamiento() -> Tuple[bool, str]:
     if not mysql_ok:
         return False, f"Fallo en verificación de MySQL: {mysql_msg}"
     
-    logger.info("✅ Todos los prerrequisitos para entrenamiento verificados exitosamente")
+    logger.info(" Todos los prerrequisitos para entrenamiento verificados exitosamente")
     return True, "Prerrequisitos verificados exitosamente"
 
 
@@ -535,7 +535,7 @@ def verificar_prerequisitos_etl() -> Tuple[bool, str]:
     modelo_ok, modelo_msg, ruta_modelo = verificar_modelo_h5()
     
     if not modelo_ok:
-        logger.warning("⚠️  Modelo .h5 no encontrado. Intentando descargar con DVC...")
+        logger.warning("  Modelo .h5 no encontrado. Intentando descargar con DVC...")
         dvc_ok, dvc_msg = descargar_modelo_dvc()
         
         if not dvc_ok:
@@ -547,7 +547,7 @@ def verificar_prerequisitos_etl() -> Tuple[bool, str]:
             return False, f"Modelo no disponible después de DVC pull: {modelo_msg}"
     
     logger.info("=" * 60)
-    logger.info("✅ TODOS LOS PRERREQUISITOS VERIFICADOS EXITOSAMENTE")
+    logger.info(" TODOS LOS PRERREQUISITOS VERIFICADOS EXITOSAMENTE")
     logger.info("=" * 60)
     
     return True, "Todos los prerrequisitos verificados exitosamente"
@@ -592,7 +592,7 @@ def ejecutar_procesamiento_completo():
             })
             return
         
-        logger.info("✅ Prerrequisitos verificados. Iniciando procesamiento...")
+        logger.info(" Prerrequisitos verificados. Iniciando procesamiento...")
         
         # Limpiar carpeta bentoml si existe (no se usa)
         limpiar_carpeta_bentoml()
@@ -619,7 +619,7 @@ def ejecutar_procesamiento_completo():
         
         if not exito_descarga or not archivos_descargados:
             error_msg = "No se pudieron descargar archivos desde S3 o no hay archivos para procesar"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             processing_status.update({
                 "estado": "error",
                 "mensaje": error_msg,
@@ -628,7 +628,7 @@ def ejecutar_procesamiento_completo():
             })
             return
         
-        logger.info(f"✅ {len(archivos_descargados)} archivos descargados desde S3")
+        logger.info(f" {len(archivos_descargados)} archivos descargados desde S3")
         processing_status["progreso"] = 15
 
         # FASE 2: Predicción de facturas (clasificación)
@@ -644,7 +644,7 @@ def ejecutar_procesamiento_completo():
         archivos_preventivos = resultado_clasificacion.get('archivos_preventivos', [])
         archivos_procesados = resultado_clasificacion.get('archivos_procesados', [])
         
-        logger.info(f"📊 Clasificación: {len(archivos_correctivos)} correctivas, {len(archivos_preventivos)} preventivas")
+        logger.info(f" Clasificación: {len(archivos_correctivos)} correctivas, {len(archivos_preventivos)} preventivas")
 
         # FASE 3: Procesamiento OCR
         processing_status.update({
@@ -687,16 +687,16 @@ def ejecutar_procesamiento_completo():
             "progreso": 97,
             "mensaje": "Eliminando archivos procesados del bucket S3"
         })
-        logger.info("🗑️  Eliminando archivos procesados del bucket S3...")
+        logger.info("  Eliminando archivos procesados del bucket S3...")
         exito_eliminacion, cantidad_eliminados = s3_utils.eliminar_archivos_s3(
             archivos=archivos_procesados,
             carpeta_s3=settings.S3_PREFIX_FACTURAS if settings.S3_PREFIX_FACTURAS else None
         )
         
         if exito_eliminacion:
-            logger.info(f"✅ {cantidad_eliminados} archivos eliminados del bucket S3")
+            logger.info(f" {cantidad_eliminados} archivos eliminados del bucket S3")
         else:
-            logger.warning(f"⚠️  No se pudieron eliminar todos los archivos del S3")
+            logger.warning(f"  No se pudieron eliminar todos los archivos del S3")
         
         processing_status["progreso"] = 99
 
@@ -768,14 +768,14 @@ def ejecutar_entrenamiento_completo():
             "progreso": 80,
             "mensaje": "Entrenando modelo"
         })
-        logger.info("🔵 Iniciando entrenamiento del modelo (esto puede tardar varios minutos)...")
+        logger.info(" Iniciando entrenamiento del modelo (esto puede tardar varios minutos)...")
         try:
             model.entrenar_modelo()
             training_status["progreso"] = 85
-            logger.info("✅ Entrenamiento del modelo completado exitosamente")
+            logger.info(" Entrenamiento del modelo completado exitosamente")
         except Exception as e:
             error_msg = f"Error durante el entrenamiento del modelo: {str(e)}"
-            logger.error(f"❌ {error_msg}", exc_info=True)
+            logger.error(f" {error_msg}", exc_info=True)
             training_status.update({
                 "estado": "error",
                 "mensaje": "Error durante el entrenamiento",
@@ -796,15 +796,15 @@ def ejecutar_entrenamiento_completo():
         ruta_modelo_final = os.path.join(carpeta_modelos, 'modelo_facturas_final.h5')
         
         if os.path.exists(ruta_modelo_final):
-            logger.info("📤 Iniciando subida del modelo a S3 con DVC...")
+            logger.info(" Iniciando subida del modelo a S3 con DVC...")
             dvc_ok, dvc_msg = subir_modelo_dvc(ruta_modelo_final)
             
             if not dvc_ok:
-                logger.warning(f"⚠️  No se pudo subir el modelo a S3: {dvc_msg}")
+                logger.warning(f"  No se pudo subir el modelo a S3: {dvc_msg}")
                 # No fallar el entrenamiento si falla el push, solo advertir
                 training_status["mensaje"] = f"Entrenamiento completado, pero falló subida a S3: {dvc_msg}"
             else:
-                logger.info(f"✅ {dvc_msg}")
+                logger.info(f" {dvc_msg}")
                 training_status["mensaje"] = "Entrenamiento completado y modelo subido a S3"
                 
                 # Actualizar tracking en BD para marcar dvc_push_completed = True
@@ -812,7 +812,7 @@ def ejecutar_entrenamiento_completo():
                 # Por ahora, el tracking se guarda antes del push, así que dvc_push_completed será False
                 # Si necesitas que sea True, deberías actualizar el registro después del push exitoso
         else:
-            logger.warning(f"⚠️  No se encontró el modelo en {ruta_modelo_final} para subir a S3")
+            logger.warning(f"  No se encontró el modelo en {ruta_modelo_final} para subir a S3")
         
         training_status["progreso"] = 90
 
@@ -877,7 +877,7 @@ async def procesar_facturas(background_tasks: BackgroundTasks):
             detail=error_msg
         )
     
-    logger.info("✅ Prerrequisitos verificados. Iniciando procesamiento...")
+    logger.info(" Prerrequisitos verificados. Iniciando procesamiento...")
 
     processing_status.update({
         "estado": "en_cola",
@@ -960,7 +960,7 @@ async def train_model(background_tasks: BackgroundTasks):
             detail=error_msg
         )
     
-    logger.info("✅ Prerrequisitos verificados. Iniciando entrenamiento...")
+    logger.info(" Prerrequisitos verificados. Iniciando entrenamiento...")
 
     training_status.update({
         "estado": "en_cola",

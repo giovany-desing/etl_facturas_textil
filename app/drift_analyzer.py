@@ -130,12 +130,12 @@ def detectar_drift(
     
     for carpeta_nombre, ruta in rutas_datos.items():
         if ruta and os.path.exists(ruta):
-            logger.info(f"📊 Procesando características de: {carpeta_nombre}")
+            logger.info(f" Procesando características de: {carpeta_nombre}")
             caracteristicas = procesar_carpeta_para_drift(ruta)
             todas_caracteristicas[carpeta_nombre] = caracteristicas
-            logger.info(f"   ✅ {len(caracteristicas)} facturas procesadas")
+            logger.info(f"    {len(caracteristicas)} facturas procesadas")
         else:
-            logger.warning(f"⚠️ Carpeta {carpeta_nombre} no disponible")
+            logger.warning(f" Carpeta {carpeta_nombre} no disponible")
     
     if not todas_caracteristicas:
         raise Exception("No se pudieron extraer características de ninguna carpeta")
@@ -145,19 +145,19 @@ def detectar_drift(
     
     # Si existe baseline, comparar
     if os.path.exists(ruta_baseline):
-        logger.info("📊 Comparando con datos de referencia (baseline)")
+        logger.info(" Comparando con datos de referencia (baseline)")
         baseline_caracteristicas = np.load(ruta_baseline, allow_pickle=True).item()
         
         # Comparar cada tipo de factura
         for tipo_factura, caracteristicas_actuales in todas_caracteristicas.items():
             if tipo_factura not in baseline_caracteristicas:
-                logger.warning(f"⚠️ No hay baseline para {tipo_factura}")
+                logger.warning(f" No hay baseline para {tipo_factura}")
                 continue
             
             baseline = baseline_caracteristicas[tipo_factura]
             
             if len(caracteristicas_actuales) == 0 or len(baseline) == 0:
-                logger.warning(f"⚠️ Datos insuficientes para comparar {tipo_factura}")
+                logger.warning(f" Datos insuficientes para comparar {tipo_factura}")
                 continue
             
             drift_en_tipo = False
@@ -185,7 +185,7 @@ def detectar_drift(
                     if es_diferente:
                         drift_en_tipo = True
                         logger.warning(
-                            f"   ⚠️ DRIFT detectado en {tipo_factura}.{clave}: "
+                            f"    DRIFT detectado en {tipo_factura}.{clave}: "
                             f"statistic={statistic:.3f}, p={p_value:.4f}"
                         )
                     
@@ -202,16 +202,16 @@ def detectar_drift(
             
             if drift_en_tipo:
                 drift_detectado = True
-                logger.warning(f"⚠️ DRIFT DETECTADO en {tipo_factura}")
+                logger.warning(f" DRIFT DETECTADO en {tipo_factura}")
             else:
-                logger.info(f"✅ No se detectó drift en {tipo_factura}")
+                logger.info(f" No se detectó drift en {tipo_factura}")
     
     else:
         # Si no hay baseline, guardar características actuales como nuevo baseline
         logger.info("📝 No se encontró baseline. Guardando características actuales como nuevo baseline")
         os.makedirs(os.path.dirname(ruta_baseline), exist_ok=True)
         np.save(ruta_baseline, todas_caracteristicas)
-        logger.info(f"✅ Baseline guardado en: {ruta_baseline}")
+        logger.info(f" Baseline guardado en: {ruta_baseline}")
         drift_detectado = False  # Sin baseline, no podemos detectar drift
     
     return drift_detectado, resultados_drift, todas_caracteristicas

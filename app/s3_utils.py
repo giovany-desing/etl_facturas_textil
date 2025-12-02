@@ -26,23 +26,23 @@ def obtener_cliente_s3():
     try:
         # Verificar nombre del bucket
         if not settings.S3_BUCKET_NAME:
-            logger.error("❌ Nombre del bucket S3 no configurado (S3_BUCKET_NAME)")
+            logger.error(" Nombre del bucket S3 no configurado (S3_BUCKET_NAME)")
             return None
         
         # Verificar credenciales disponibles (prioridad: env vars > settings)
         aws_key = os.getenv('AWS_ACCESS_KEY_ID') or settings.AWS_ACCESS_KEY_ID
         aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY') or settings.AWS_SECRET_ACCESS_KEY
         
-        logger.info(f"🔍 Verificando credenciales AWS:")
-        logger.info(f"   env AWS_ACCESS_KEY_ID: {'✅ Configurado' if os.getenv('AWS_ACCESS_KEY_ID') else '❌ No configurado'}")
-        logger.info(f"   settings.AWS_ACCESS_KEY_ID: {'✅ Configurado' if settings.AWS_ACCESS_KEY_ID else '❌ No configurado'}")
-        logger.info(f"   env AWS_SECRET_ACCESS_KEY: {'✅ Configurado' if os.getenv('AWS_SECRET_ACCESS_KEY') else '❌ No configurado'}")
-        logger.info(f"   settings.AWS_SECRET_ACCESS_KEY: {'✅ Configurado' if settings.AWS_SECRET_ACCESS_KEY else '❌ No configurado'}")
+        logger.info(f" Verificando credenciales AWS:")
+        logger.info(f"   env AWS_ACCESS_KEY_ID: {' Configurado' if os.getenv('AWS_ACCESS_KEY_ID') else ' No configurado'}")
+        logger.info(f"   settings.AWS_ACCESS_KEY_ID: {' Configurado' if settings.AWS_ACCESS_KEY_ID else ' No configurado'}")
+        logger.info(f"   env AWS_SECRET_ACCESS_KEY: {' Configurado' if os.getenv('AWS_SECRET_ACCESS_KEY') else ' No configurado'}")
+        logger.info(f"   settings.AWS_SECRET_ACCESS_KEY: {' Configurado' if settings.AWS_SECRET_ACCESS_KEY else ' No configurado'}")
         logger.info(f"   Bucket: {settings.S3_BUCKET_NAME}")
         
         # Intentar usar credenciales de variables de entorno o settings
         if aws_key and aws_secret:
-            logger.info("✅ Usando credenciales de AWS")
+            logger.info(" Usando credenciales de AWS")
             s3_client = boto3.client(
                 's3',
                 aws_access_key_id=aws_key,
@@ -51,12 +51,12 @@ def obtener_cliente_s3():
             )
         else:
             # Intentar usar credenciales por defecto de boto3 (variables de entorno, ~/.aws/credentials, etc.)
-            logger.warning("⚠️  No se encontraron credenciales explícitas, intentando usar credenciales por defecto de boto3...")
+            logger.warning("  No se encontraron credenciales explícitas, intentando usar credenciales por defecto de boto3...")
             try:
                 s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
-                logger.info("✅ Cliente S3 creado con credenciales por defecto de boto3")
+                logger.info(" Cliente S3 creado con credenciales por defecto de boto3")
             except NoCredentialsError as e:
-                logger.error("❌ No se encontraron credenciales de AWS")
+                logger.error(" No se encontraron credenciales de AWS")
                 logger.error("   Configura AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en:")
                 logger.error("   - Archivo .env en la raíz del proyecto (y reinicia el contenedor)")
                 logger.error("   - Variables de entorno del sistema")
@@ -64,11 +64,11 @@ def obtener_cliente_s3():
                 logger.error("   - O agrega env_file: - ../.env en docker-compose.yml")
                 return None
         
-        logger.debug("✅ Cliente S3 creado exitosamente")
+        logger.debug(" Cliente S3 creado exitosamente")
         return s3_client
         
     except Exception as e:
-        logger.error(f"❌ Error creando cliente S3: {e}", exc_info=True)
+        logger.error(f" Error creando cliente S3: {e}", exc_info=True)
         return None
 
 
@@ -88,7 +88,7 @@ def descargar_carpeta_s3(carpeta_s3: str = None, ruta_local: str = None) -> Tupl
         if carpeta_s3 is None:
             carpeta_s3 = settings.S3_PREFIX_FACTURAS
         
-        logger.info(f"📥 Descargando archivos desde S3 bucket '{settings.S3_BUCKET_NAME}' (prefijo: '{carpeta_s3 or 'raíz'}')...")
+        logger.info(f" Descargando archivos desde S3 bucket '{settings.S3_BUCKET_NAME}' (prefijo: '{carpeta_s3 or 'raíz'}')...")
         
         s3_client = obtener_cliente_s3()
         if not s3_client:
@@ -111,7 +111,7 @@ def descargar_carpeta_s3(carpeta_s3: str = None, ruta_local: str = None) -> Tupl
             
             for page in pages:
                 if 'Contents' not in page:
-                    logger.warning(f"⚠️  No se encontraron archivos en S3 con prefijo '{prefix}'")
+                    logger.warning(f"  No se encontraron archivos en S3 con prefijo '{prefix}'")
                     continue
                 
                 for obj in page['Contents']:
@@ -130,24 +130,24 @@ def descargar_carpeta_s3(carpeta_s3: str = None, ruta_local: str = None) -> Tupl
                     try:
                         s3_client.download_file(settings.S3_BUCKET_NAME, key, ruta_archivo_local)
                         archivos_descargados.append(nombre_archivo)
-                        logger.debug(f"  ✅ Descargado: {nombre_archivo}")
+                        logger.debug(f"   Descargado: {nombre_archivo}")
                     except Exception as e:
-                        logger.error(f"  ❌ Error descargando {nombre_archivo}: {e}")
+                        logger.error(f"   Error descargando {nombre_archivo}: {e}")
                         continue
             
-            logger.info(f"✅ Total archivos descargados desde S3: {len(archivos_descargados)}")
+            logger.info(f" Total archivos descargados desde S3: {len(archivos_descargados)}")
             return True, archivos_descargados
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
             if error_code == 'NoSuchBucket':
-                logger.error(f"❌ El bucket '{settings.S3_BUCKET_NAME}' no existe")
+                logger.error(f" El bucket '{settings.S3_BUCKET_NAME}' no existe")
             else:
-                logger.error(f"❌ Error de AWS S3: {e}")
+                logger.error(f" Error de AWS S3: {e}")
             return False, []
         
     except Exception as e:
-        logger.error(f"❌ Error inesperado descargando desde S3: {e}", exc_info=True)
+        logger.error(f" Error inesperado descargando desde S3: {e}", exc_info=True)
         return False, []
 
 
@@ -171,7 +171,7 @@ def eliminar_archivos_s3(archivos: List[str], carpeta_s3: str = None) -> Tuple[b
         if carpeta_s3 is None:
             carpeta_s3 = settings.S3_PREFIX_FACTURAS
         
-        logger.info(f"🗑️  Eliminando {len(archivos)} archivos del bucket S3 '{settings.S3_BUCKET_NAME}'...")
+        logger.info(f"  Eliminando {len(archivos)} archivos del bucket S3 '{settings.S3_BUCKET_NAME}'...")
         
         s3_client = obtener_cliente_s3()
         if not s3_client:
@@ -202,18 +202,18 @@ def eliminar_archivos_s3(archivos: List[str], carpeta_s3: str = None) -> Tuple[b
                 # Verificar errores
                 if 'Errors' in response and response['Errors']:
                     for error in response['Errors']:
-                        logger.error(f"  ❌ Error eliminando {error.get('Key', 'desconocido')}: {error.get('Message', 'Unknown error')}")
+                        logger.error(f"   Error eliminando {error.get('Key', 'desconocido')}: {error.get('Message', 'Unknown error')}")
                 
-                logger.debug(f"  ✅ Lote eliminado: {eliminados}/{len(lote)} archivos")
+                logger.debug(f"   Lote eliminado: {eliminados}/{len(lote)} archivos")
                 
             except ClientError as e:
-                logger.error(f"❌ Error eliminando lote de archivos: {e}")
+                logger.error(f" Error eliminando lote de archivos: {e}")
                 continue
         
-        logger.info(f"✅ Total archivos eliminados de S3: {archivos_eliminados}/{len(archivos)}")
+        logger.info(f" Total archivos eliminados de S3: {archivos_eliminados}/{len(archivos)}")
         return True, archivos_eliminados
         
     except Exception as e:
-        logger.error(f"❌ Error inesperado eliminando archivos de S3: {e}", exc_info=True)
+        logger.error(f" Error inesperado eliminando archivos de S3: {e}", exc_info=True)
         return False, 0
 

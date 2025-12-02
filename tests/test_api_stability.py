@@ -29,8 +29,11 @@ class TestTrainModelEndpoint:
         """
         Verifica que el endpoint /train_model responde con 200 o 202
         """
-        # Mock de la función de entrenamiento para evitar ejecución real
-        with patch('app.main.ejecutar_entrenamiento_completo') as mock_train:
+        # Mock de las verificaciones de prerrequisitos para evitar conexiones reales
+        with patch('app.main.verificar_prerequisitos_entrenamiento', return_value=(True, "Prerrequisitos OK")), \
+             patch('app.main.verificar_conexion_drive', return_value=(True, "Drive OK")), \
+             patch('app.main.verificar_conexion_mysql', return_value=(True, "MySQL OK")), \
+             patch('app.main.ejecutar_entrenamiento_completo') as mock_train:
             # Hacer request
             response = client.post("/train_model")
             
@@ -51,8 +54,13 @@ class TestProcesarFacturasEndpoint:
         """
         Verifica que el endpoint /procesar_facturas responde con 200 o 202
         """
-        # Mock de la función de procesamiento para evitar ejecución real
-        with patch('app.main.ejecutar_procesamiento_completo') as mock_proc:
+        # Mock de las verificaciones de prerrequisitos para evitar conexiones reales
+        with patch('app.main.verificar_prerequisitos_etl', return_value=(True, "Prerrequisitos OK")), \
+             patch('app.main.verificar_conexion_drive', return_value=(True, "Drive OK")), \
+             patch('app.main.verificar_conexion_mysql', return_value=(True, "MySQL OK")), \
+             patch('app.main.verificar_conexion_s3', return_value=(True, "S3 OK")), \
+             patch('app.main.verificar_modelo_h5', return_value=(True, "Modelo OK", "/fake/path/model.h5")), \
+             patch('app.main.ejecutar_procesamiento_completo') as mock_proc:
             # Hacer request
             response = client.post("/procesar_facturas")
             

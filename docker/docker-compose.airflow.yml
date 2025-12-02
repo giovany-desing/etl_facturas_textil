@@ -203,7 +203,9 @@ services:
       "
       set -e &&
       echo '=== INSTALANDO DEPENDENCIAS PRIMERO ===' &&
-      pip install --no-cache-dir pymysql numpy scipy opencv-python-headless pdf2image Pillow pandas google-api-python-client google-auth-httplib2 google-auth-oauthlib requests &&
+      pip install --no-cache-dir \"numpy<2.0\" &&
+      pip install --no-cache-dir \"pyarrow>=10.0.0,<16.0.0\" &&
+      pip install --no-cache-dir pymysql scipy opencv-python-headless pdf2image Pillow pandas google-api-python-client google-auth-httplib2 google-auth-oauthlib requests &&
       echo '=== VERIFICANDO PYMYSQL ===' &&
       python3 -c 'import pymysql; print(\"✅ pymysql instalado\")' &&
       echo '=== EJECUTANDO SCRIPT DE INICIALIZACIÓN ===' &&

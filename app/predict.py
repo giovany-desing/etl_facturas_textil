@@ -39,7 +39,7 @@ def cargar_modelo(ruta_modelo=None):
     if not modelos_disponibles:
         raise FileNotFoundError(f"No se encontraron modelos .h5 en la carpeta {carpeta_modelos}")
     
-    logger.info(f"📁 Modelos disponibles: {modelos_disponibles}")
+    logger.info(f" Modelos disponibles: {modelos_disponibles}")
     
     # Orden de preferencia para seleccionar modelo
     modelos_preferidos = [
@@ -66,10 +66,10 @@ def cargar_modelo(ruta_modelo=None):
     
     try:
         modelo = keras.models.load_model(ruta_modelo)
-        logger.info("✅ Modelo cargado exitosamente")
+        logger.info(" Modelo cargado exitosamente")
         return modelo
     except Exception as e:
-        logger.error(f"❌ Error cargando el modelo: {e}")
+        logger.error(f" Error cargando el modelo: {e}")
         raise
 
 def inicializar_modelo():
@@ -80,12 +80,12 @@ def inicializar_modelo():
             modelo = cargar_modelo()
         return True
     except Exception as e:
-        logger.error(f"❌ Error inicializando modelo: {e}")
+        logger.error(f" Error inicializando modelo: {e}")
         return False
 
 def verificar_estructura_proyecto():
     """Verifica que la estructura del proyecto sea correcta"""
-    logger.info("🔍 Verificando estructura del proyecto...")
+    logger.info(" Verificando estructura del proyecto...")
     
     carpetas_requeridas = [
         os.path.join(DIRECTORIO_RAIZ, "modelos"),
@@ -94,11 +94,11 @@ def verificar_estructura_proyecto():
     
     for carpeta in carpetas_requeridas:
         if os.path.exists(carpeta):
-            logger.info(f"✅ Carpeta encontrada: {carpeta}")
+            logger.info(f" Carpeta encontrada: {carpeta}")
             archivos = os.listdir(carpeta)
-            logger.info(f"   📁 Contenido: {archivos}")
+            logger.info(f"    Contenido: {archivos}")
         else:
-            logger.warning(f"⚠️ Carpeta no encontrada: {carpeta}")
+            logger.warning(f" Carpeta no encontrada: {carpeta}")
     
     return True
 
@@ -109,9 +109,9 @@ def crear_carpetas_destino():
     for carpeta in carpetas:
         if not os.path.exists(carpeta):
             os.makedirs(carpeta)
-            logger.info(f"📁 Carpeta creada: {carpeta}")
+            logger.info(f" Carpeta creada: {carpeta}")
         else:
-            logger.info(f"✅ Carpeta ya existe: {carpeta}")
+            logger.info(f" Carpeta ya existe: {carpeta}")
 
 def mover_archivo_segun_prediccion(ruta_origen, clase):
     """Mueve el archivo a la carpeta correspondiente según la predicción
@@ -143,16 +143,16 @@ def mover_archivo_segun_prediccion(ruta_origen, clase):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             nombre_archivo_nuevo = f"{nombre_base}_{timestamp}{extension}"
             ruta_destino = os.path.join(carpeta_destino, nombre_archivo_nuevo)
-            logger.warning(f"⚠️ Archivo duplicado, renombrando a: {nombre_archivo_nuevo}")
+            logger.warning(f" Archivo duplicado, renombrando a: {nombre_archivo_nuevo}")
         
         # Mover el archivo
         shutil.move(ruta_origen, ruta_destino)
-        logger.info(f"📦 Archivo movido a '{nombre_carpeta}': {nombre_archivo}")
+        logger.info(f" Archivo movido a '{nombre_carpeta}': {nombre_archivo}")
         
         return ruta_destino
         
     except Exception as e:
-        logger.error(f"❌ Error moviendo archivo {os.path.basename(ruta_origen)}: {e}")
+        logger.error(f" Error moviendo archivo {os.path.basename(ruta_origen)}: {e}")
         return None
 
 def predecir_archivo(ruta_archivo):
@@ -164,19 +164,19 @@ def predecir_archivo(ruta_archivo):
         if not inicializar_modelo():
             return None, None
     
-    logger.info(f"🔍 Procesando: {os.path.basename(ruta_archivo)}")
+    logger.info(f" Procesando: {os.path.basename(ruta_archivo)}")
     
     try:
         # Usar la función extraer_caracteristicas_imagen_preprocesamiento
         imagen_preprocesada = preprocessing.extraer_caracteristicas_imagen_preprocesamiento(ruta_archivo)
         
         if imagen_preprocesada is None:
-            logger.error(f"❌ No se pudo preprocesar el archivo: {os.path.basename(ruta_archivo)}")
+            logger.error(f" No se pudo preprocesar el archivo: {os.path.basename(ruta_archivo)}")
             return None, None
         
         # Verificar que la forma sea correcta
         if imagen_preprocesada.shape != (224, 224, 3):
-            logger.error(f"❌ Forma incorrecta después del preprocesamiento: {imagen_preprocesada.shape}")
+            logger.error(f" Forma incorrecta después del preprocesamiento: {imagen_preprocesada.shape}")
             return None, None
         
         # Hacer predicción
@@ -185,11 +185,11 @@ def predecir_archivo(ruta_archivo):
         probabilidad = float(prediccion[0][0])
         clase = 1 if probabilidad > 0.5 else 0
         
-        logger.info(f"✅ Predicción completada - Clase: {clase}, Probabilidad: {probabilidad:.4f}")
+        logger.info(f" Predicción completada - Clase: {clase}, Probabilidad: {probabilidad:.4f}")
         return clase, probabilidad
         
     except Exception as e:
-        logger.error(f"❌ Error procesando {os.path.basename(ruta_archivo)}: {e}")
+        logger.error(f" Error procesando {os.path.basename(ruta_archivo)}: {e}")
         return None, None
 
 
@@ -199,7 +199,7 @@ def buscar_archivos_facturas(carpeta_facturas=None):
         carpeta_facturas = os.path.join(DIRECTORIO_RAIZ, "mes en curso")
     
     if not os.path.exists(carpeta_facturas):
-        logger.error(f"❌ No se encontró la carpeta: {carpeta_facturas}")
+        logger.error(f" No se encontró la carpeta: {carpeta_facturas}")
         return []
     
     # Buscar archivos PDF e imágenes (usando las mismas extensiones que el preprocessing)
@@ -209,7 +209,7 @@ def buscar_archivos_facturas(carpeta_facturas=None):
     for ext in extensiones_permitidas:
         archivos.extend([f for f in os.listdir(carpeta_facturas) if f.lower().endswith(ext)])
     
-    logger.info(f"📁 Encontrados {len(archivos)} archivos en {carpeta_facturas}")
+    logger.info(f" Encontrados {len(archivos)} archivos en {carpeta_facturas}")
     return archivos
 
 ####################
@@ -229,7 +229,7 @@ def predecir():
             'archivos_procesados': [lista de todos los archivos procesados]
         }
     """
-    logger.info("🔍 CLASIFICADOR DE FACTURAS - RED NEURONAL")
+    logger.info(" CLASIFICADOR DE FACTURAS - RED NEURONAL")
     logger.info("="*50)
     
     resultado_clasificacion = {
@@ -247,29 +247,29 @@ def predecir():
         
         # Cargar modelo primero
         if not inicializar_modelo():
-            logger.error("❌ No se pudo cargar el modelo")
+            logger.error(" No se pudo cargar el modelo")
             return resultado_clasificacion
         
         # Definir carpeta de facturas
         carpeta_facturas = os.path.join(DIRECTORIO_RAIZ, "mes en curso")
         
         if not os.path.exists(carpeta_facturas):
-            logger.error(f"❌ No se encontró la carpeta '{carpeta_facturas}'")
+            logger.error(f" No se encontró la carpeta '{carpeta_facturas}'")
             logger.info("💡 Por favor, crea la carpeta 'mes en curso' en la raíz del proyecto")
             logger.info("   y coloca allí las facturas a clasificar (PDF/JPG/PNG)")
             return resultado_clasificacion
         
         # Buscar archivos
-        logger.info(f"🔍 Buscando facturas en: {carpeta_facturas}/")
+        logger.info(f" Buscando facturas en: {carpeta_facturas}/")
         archivos = buscar_archivos_facturas(carpeta_facturas)
         
         if not archivos:
-            logger.warning(f"⚠️ No se encontraron archivos en: {carpeta_facturas}")
+            logger.warning(f" No se encontraron archivos en: {carpeta_facturas}")
             return resultado_clasificacion
         
-        logger.info(f"📁 Total de archivos encontrados: {len(archivos)}")
+        logger.info(f" Total de archivos encontrados: {len(archivos)}")
         logger.info("="*70)
-        logger.info("🚀 INICIANDO PREDICCIONES UNO POR UNO")
+        logger.info(" INICIANDO PREDICCIONES UNO POR UNO")
         logger.info("="*70)
         
         # Procesar uno por uno
@@ -290,11 +290,11 @@ def predecir():
             if clase is not None:
                 # Log según la clase
                 if clase == 0:
-                    logger.info(f"🔌 CONECTAR A 0 (CORRECTIVA) - {archivo} (Probabilidad: {probabilidad:.4f})")
+                    logger.info(f" CONECTAR A 0 (CORRECTIVA) - {archivo} (Probabilidad: {probabilidad:.4f})")
                     conectar_0_count += 1
                     resultado_clasificacion['archivos_correctivos'].append(archivo)
                 else:  # clase == 1
-                    logger.info(f"🔌 CONECTAR A 1 (PREVENTIVA) - {archivo} (Probabilidad: {probabilidad:.4f})")
+                    logger.info(f" CONECTAR A 1 (PREVENTIVA) - {archivo} (Probabilidad: {probabilidad:.4f})")
                     conectar_1_count += 1
                     resultado_clasificacion['archivos_preventivos'].append(archivo)
                 
@@ -321,32 +321,32 @@ def predecir():
                 }
                 resultados.append(resultado)
             else:
-                logger.error(f"❌ No se pudo procesar: {archivo}")
+                logger.error(f" No se pudo procesar: {archivo}")
         
         # Resumen final
         logger.info("\n" + "="*70)
-        logger.info("📊 RESUMEN FINAL DE PREDICCIONES Y MOVIMIENTOS")
+        logger.info(" RESUMEN FINAL DE PREDICCIONES Y MOVIMIENTOS")
         logger.info("="*70)
-        logger.info(f"📦 Total procesados: {len(resultados)}/{len(archivos)}")
-        logger.info(f"🔌 CONECTAR A 0 (CORRECTIVA - carpeta 'corr'): {conectar_0_count} archivos")
-        logger.info(f"🔌 CONECTAR A 1 (PREVENTIVA - carpeta 'prev'): {conectar_1_count} archivos")
-        logger.info(f"✅ Archivos movidos exitosamente: {movidos_exitosamente}")
+        logger.info(f" Total procesados: {len(resultados)}/{len(archivos)}")
+        logger.info(f" CONECTAR A 0 (CORRECTIVA - carpeta 'corr'): {conectar_0_count} archivos")
+        logger.info(f" CONECTAR A 1 (PREVENTIVA - carpeta 'prev'): {conectar_1_count} archivos")
+        logger.info(f" Archivos movidos exitosamente: {movidos_exitosamente}")
         
         if errores_movimiento > 0:
-            logger.warning(f"⚠️ Errores al mover archivos: {errores_movimiento}")
+            logger.warning(f" Errores al mover archivos: {errores_movimiento}")
         
         if len(resultados) > 0:
             porcentaje_0 = (conectar_0_count / len(resultados)) * 100
             porcentaje_1 = (conectar_1_count / len(resultados)) * 100
-            logger.info(f"📊 Distribución: {porcentaje_0:.1f}% correctivas, {porcentaje_1:.1f}% preventivas")
+            logger.info(f" Distribución: {porcentaje_0:.1f}% correctivas, {porcentaje_1:.1f}% preventivas")
         
         logger.info("="*70)
         logger.info("🎉 ¡Clasificación completada!")
-        logger.info(f"📁 Archivos clase 0 (correctivos) en: {CARPETA_CORR}")
-        logger.info(f"📁 Archivos clase 1 (preventivos) en: {CARPETA_PREV}")
+        logger.info(f" Archivos clase 0 (correctivos) en: {CARPETA_CORR}")
+        logger.info(f" Archivos clase 1 (preventivos) en: {CARPETA_PREV}")
         
     except Exception as e:
-        logger.error(f"❌ Error durante la clasificación: {e}", exc_info=True)
+        logger.error(f" Error durante la clasificación: {e}", exc_info=True)
     
     return resultado_clasificacion
 

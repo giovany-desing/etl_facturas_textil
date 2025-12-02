@@ -181,7 +181,7 @@ def _buscar_carpeta_por_nombre(drive, nombre_carpeta, parent_id='root'):
     except HttpError as e:
         logger.error(f"Error HTTP al buscar carpeta '{nombre_carpeta}': {e}")
         if e.resp.status == 403:
-            logger.error("❌ Acceso denegado. Verifica que la carpeta esté compartida con la Service Account")
+            logger.error(" Acceso denegado. Verifica que la carpeta esté compartida con la Service Account")
         return None
     except Exception as e:
         logger.error(f"Error al buscar carpeta '{nombre_carpeta}': {e}")
@@ -366,7 +366,7 @@ def eliminar_archivos_drive(nombre_carpeta="mes en curso", horas_limite=1, elimi
         eliminar_permanentemente (bool): Si es True, elimina permanentemente en lugar de enviar a papelera
     """
     try:
-        logger.info(f"🔍 Eliminando archivos de '{nombre_carpeta}' con menos de {horas_limite} hora(s)")
+        logger.info(f" Eliminando archivos de '{nombre_carpeta}' con menos de {horas_limite} hora(s)")
         drive = autenticar_drive()
         
         # Buscar carpeta principal
@@ -392,20 +392,20 @@ def eliminar_archivos_drive(nombre_carpeta="mes en curso", horas_limite=1, elimi
         
         # Si horas_limite es 0, eliminar todos los archivos sin importar la fecha
         if horas_limite == 0:
-            logger.info("🗑️  Eliminando TODOS los archivos de la carpeta (sin filtro de tiempo)")
+            logger.info("  Eliminando TODOS los archivos de la carpeta (sin filtro de tiempo)")
             for archivo in archivos:
                 try:
                     if eliminar_permanentemente:
                         # Eliminar permanentemente
                         drive.files().delete(fileId=archivo['id']).execute()
-                        logger.info(f"🗑️  ELIMINADO PERMANENTEMENTE: {archivo['name']}")
+                        logger.info(f"  ELIMINADO PERMANENTEMENTE: {archivo['name']}")
                     else:
                         # Enviar a papelera (actualizar con trashed=true)
                         drive.files().update(
                             fileId=archivo['id'],
                             body={'trashed': True}
                         ).execute()
-                        logger.info(f"🗑️  ENVIADO A PAPELERA: {archivo['name']}")
+                        logger.info(f"  ENVIADO A PAPELERA: {archivo['name']}")
                     
                     archivos_eliminados += 1
                 except Exception as e:
@@ -431,14 +431,14 @@ def eliminar_archivos_drive(nombre_carpeta="mes en curso", horas_limite=1, elimi
                         if eliminar_permanentemente:
                             # Eliminar permanentemente
                             drive.files().delete(fileId=archivo['id']).execute()
-                            logger.info(f"🗑️  ELIMINADO PERMANENTEMENTE: {archivo['name']}")
+                            logger.info(f"  ELIMINADO PERMANENTEMENTE: {archivo['name']}")
                         else:
                             # Enviar a papelera (actualizar con trashed=true)
                             drive.files().update(
                                 fileId=archivo['id'],
                                 body={'trashed': True}
                             ).execute()
-                            logger.info(f"🗑️  ENVIADO A PAPELERA: {archivo['name']}")
+                            logger.info(f"  ENVIADO A PAPELERA: {archivo['name']}")
                         
                         archivos_eliminados += 1
                     
@@ -446,7 +446,7 @@ def eliminar_archivos_drive(nombre_carpeta="mes en curso", horas_limite=1, elimi
                     logger.error(f"Error procesando archivo {archivo.get('name', 'desconocido')}: {e}")
                     continue
         
-        logger.info(f"✅ Total archivos eliminados: {archivos_eliminados}")
+        logger.info(f" Total archivos eliminados: {archivos_eliminados}")
         return True
         
     except Exception as e:
@@ -463,11 +463,11 @@ def buscar_o_crear_carpeta(drive, carpeta_padre_id, nombre_carpeta):
         carpeta_id = _buscar_carpeta_por_nombre(drive, nombre_carpeta, carpeta_padre_id)
         
         if carpeta_id:
-            logger.debug(f"✅ Carpeta '{nombre_carpeta}' encontrada en Drive")
+            logger.debug(f" Carpeta '{nombre_carpeta}' encontrada en Drive")
             return {'id': carpeta_id}
         else:
             # Crear nueva carpeta
-            logger.info(f"📁 Creando nueva carpeta: '{nombre_carpeta}'")
+            logger.info(f" Creando nueva carpeta: '{nombre_carpeta}'")
             
             file_metadata = {
                 'name': nombre_carpeta,
@@ -480,11 +480,11 @@ def buscar_o_crear_carpeta(drive, carpeta_padre_id, nombre_carpeta):
                 fields='id, name'
             ).execute()
             
-            logger.info(f"✅ Carpeta '{nombre_carpeta}' creada exitosamente. ID: {folder['id']}")
+            logger.info(f" Carpeta '{nombre_carpeta}' creada exitosamente. ID: {folder['id']}")
             return folder
             
     except Exception as e:
-        logger.error(f"❌ Error buscando/creando carpeta '{nombre_carpeta}': {e}")
+        logger.error(f" Error buscando/creando carpeta '{nombre_carpeta}': {e}")
         return None
 
 
@@ -508,7 +508,7 @@ def subir_archivos_a_drive_segun_clasificacion(
         bool: True si la subida fue exitosa
     """
     try:
-        logger.info("📤 Subiendo archivos a Google Drive según clasificación...")
+        logger.info(" Subiendo archivos a Google Drive según clasificación...")
         drive = autenticar_drive()
         
         # Obtener ruta raíz del proyecto
@@ -519,16 +519,16 @@ def subir_archivos_a_drive_segun_clasificacion(
         # Buscar carpeta principal 'facturas' en Drive
         carpeta_principal_id = _buscar_carpeta_por_nombre(drive, 'facturas')
         if not carpeta_principal_id:
-            logger.error("❌ No se encontró la carpeta principal 'facturas' en Drive")
+            logger.error(" No se encontró la carpeta principal 'facturas' en Drive")
             return False
         
-        logger.info(f"✅ Carpeta principal 'facturas' encontrada. ID: {carpeta_principal_id}")
+        logger.info(f" Carpeta principal 'facturas' encontrada. ID: {carpeta_principal_id}")
         
         # Obtener todos los archivos procesados
         todos_los_archivos = archivos_correctivos + archivos_preventivos
         
         if not todos_los_archivos:
-            logger.warning("⚠️  No hay archivos para subir a Google Drive")
+            logger.warning("  No hay archivos para subir a Google Drive")
             return True
         
         # Buscar o crear carpetas en Drive
@@ -537,7 +537,7 @@ def subir_archivos_a_drive_segun_clasificacion(
         carpeta_preventivos = buscar_o_crear_carpeta(drive, carpeta_principal_id, 'preventivos')
         
         if not carpeta_historico or not carpeta_correctivos or not carpeta_preventivos:
-            logger.error("❌ No se pudieron obtener/crear las carpetas en Drive")
+            logger.error(" No se pudieron obtener/crear las carpetas en Drive")
             return False
         
         archivos_subidos_historico = 0
@@ -575,9 +575,9 @@ def subir_archivos_a_drive_segun_clasificacion(
                         fields='id, name'
                     ).execute()
                     archivos_subidos_historico += 1
-                    logger.debug(f"  ✅ Subido a histórico: {nombre_archivo}")
+                    logger.debug(f"   Subido a histórico: {nombre_archivo}")
                 except Exception as e:
-                    logger.error(f"  ❌ Error subiendo {nombre_archivo} a histórico: {e}")
+                    logger.error(f"   Error subiendo {nombre_archivo} a histórico: {e}")
         
         # Subir correctivos a carpeta correctivos
         for nombre_archivo in archivos_correctivos:
@@ -598,9 +598,9 @@ def subir_archivos_a_drive_segun_clasificacion(
                         fields='id, name'
                     ).execute()
                     archivos_subidos_correctivos += 1
-                    logger.debug(f"  ✅ Subido a correctivos: {nombre_archivo}")
+                    logger.debug(f"   Subido a correctivos: {nombre_archivo}")
                 except Exception as e:
-                    logger.error(f"  ❌ Error subiendo {nombre_archivo} a correctivos: {e}")
+                    logger.error(f"   Error subiendo {nombre_archivo} a correctivos: {e}")
         
         # Subir preventivos a carpeta preventivos
         for nombre_archivo in archivos_preventivos:
@@ -621,19 +621,19 @@ def subir_archivos_a_drive_segun_clasificacion(
                         fields='id, name'
                     ).execute()
                     archivos_subidos_preventivos += 1
-                    logger.debug(f"  ✅ Subido a preventivos: {nombre_archivo}")
+                    logger.debug(f"   Subido a preventivos: {nombre_archivo}")
                 except Exception as e:
-                    logger.error(f"  ❌ Error subiendo {nombre_archivo} a preventivos: {e}")
+                    logger.error(f"   Error subiendo {nombre_archivo} a preventivos: {e}")
         
-        logger.info(f"✅ Resumen de subida a Google Drive:")
-        logger.info(f"   📁 Histórico: {archivos_subidos_historico} archivos")
-        logger.info(f"   📁 Correctivos: {archivos_subidos_correctivos} archivos")
-        logger.info(f"   📁 Preventivos: {archivos_subidos_preventivos} archivos")
+        logger.info(f" Resumen de subida a Google Drive:")
+        logger.info(f"    Histórico: {archivos_subidos_historico} archivos")
+        logger.info(f"    Correctivos: {archivos_subidos_correctivos} archivos")
+        logger.info(f"    Preventivos: {archivos_subidos_preventivos} archivos")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Error subiendo archivos a Google Drive: {e}", exc_info=True)
+        logger.error(f" Error subiendo archivos a Google Drive: {e}", exc_info=True)
         return False
 
 
@@ -644,7 +644,7 @@ def subir_documentos_preventivos_correctivos():
     - 'corr' → 'correctivos' en Drive
     """
     try:
-        logger.info("🚀 Iniciando subida de documentos preventivos y correctivos")
+        logger.info(" Iniciando subida de documentos preventivos y correctivos")
         drive = autenticar_drive()
         
         # Obtener ruta raíz del proyecto
@@ -654,11 +654,11 @@ def subir_documentos_preventivos_correctivos():
         carpeta_principal_id = _buscar_carpeta_por_nombre(drive, 'facturas')
         
         if not carpeta_principal_id:
-            logger.error("❌ No se encontró la carpeta principal 'facturas' en Drive")
+            logger.error(" No se encontró la carpeta principal 'facturas' en Drive")
             return False
 
         ID_CARPETA_PRINCIPAL = carpeta_principal_id
-        logger.info(f"✅ Carpeta principal 'facturas' encontrada. ID: {ID_CARPETA_PRINCIPAL}")
+        logger.info(f" Carpeta principal 'facturas' encontrada. ID: {ID_CARPETA_PRINCIPAL}")
         
         # Configuración de carpetas a procesar
         carpetas_procesar = [
@@ -681,18 +681,18 @@ def subir_documentos_preventivos_correctivos():
             nombre_carpeta_drive = config['drive']
             tipo = config['tipo']
             
-            logger.info(f"📤 Procesando {tipo}...")
+            logger.info(f" Procesando {tipo}...")
             
             # Verificar que existe la carpeta local
             if not os.path.exists(carpeta_local):
-                logger.error(f"❌ No existe la carpeta local: {carpeta_local}")
+                logger.error(f" No existe la carpeta local: {carpeta_local}")
                 resultados.append(False)
                 continue
             
             # Buscar o crear carpeta en Drive
             carpeta_drive = buscar_o_crear_carpeta(drive, ID_CARPETA_PRINCIPAL, nombre_carpeta_drive)
             if not carpeta_drive:
-                logger.error(f"❌ No se pudo obtener/crear carpeta '{nombre_carpeta_drive}' en Drive")
+                logger.error(f" No se pudo obtener/crear carpeta '{nombre_carpeta_drive}' en Drive")
                 resultados.append(False)
                 continue
             
@@ -708,9 +708,9 @@ def subir_documentos_preventivos_correctivos():
                         if extension.lower() in extensiones_validas:
                             archivos_local.append(ruta_completa)
                         else:
-                            logger.debug(f"⏭️  Archivo omitido (extensión no válida): {archivo}")
+                            logger.debug(f"  Archivo omitido (extensión no válida): {archivo}")
             except Exception as e:
-                logger.error(f"❌ Error obteniendo archivos de {carpeta_local}: {e}")
+                logger.error(f" Error obteniendo archivos de {carpeta_local}: {e}")
                 resultados.append(False)
                 continue
             
@@ -742,10 +742,10 @@ def subir_documentos_preventivos_correctivos():
                     ).execute()
                     
                     archivos_subidos += 1
-                    logger.debug(f"✅ Subido: {nombre_archivo}")
+                    logger.debug(f" Subido: {nombre_archivo}")
                     
                 except Exception as e:
-                    logger.error(f"❌ Error subiendo {os.path.basename(archivo_path)}: {e}")
+                    logger.error(f" Error subiendo {os.path.basename(archivo_path)}: {e}")
                     continue
             
             logger.info(f"🎯 {tipo}: {archivos_subidos}/{len(archivos_local)} archivos subidos exitosamente")
@@ -755,17 +755,17 @@ def subir_documentos_preventivos_correctivos():
         exitos = sum(1 for r in resultados if r)
         total = len(resultados)
         
-        logger.info("📊 RESUMEN FINAL:")
-        logger.info(f"   ✅ Carpetas procesadas exitosamente: {exitos}/{total}")
+        logger.info(" RESUMEN FINAL:")
+        logger.info(f"    Carpetas procesadas exitosamente: {exitos}/{total}")
         
         for i, config in enumerate(carpetas_procesar):
-            estado = "✅ ÉXITO" if resultados[i] else "❌ FALLO"
+            estado = " ÉXITO" if resultados[i] else " FALLO"
             logger.info(f"   {estado} - {config['tipo']} ({config['local']} → {config['drive']})")
         
         return exitos > 0
 
     except Exception as e:
-        logger.error(f"❌ Error crítico en subida de documentos: {e}", exc_info=True)
+        logger.error(f" Error crítico en subida de documentos: {e}", exc_info=True)
         return False
 
 
@@ -785,23 +785,23 @@ def subir_mes_curso_a_historico():
         carpeta_principal_id = _buscar_carpeta_por_nombre(drive, 'facturas')
         
         if not carpeta_principal_id:
-            logger.error("❌ No se encontró la carpeta principal 'facturas' en Drive")
+            logger.error(" No se encontró la carpeta principal 'facturas' en Drive")
             return False
 
         ID_CARPETA_PRINCIPAL = carpeta_principal_id
-        logger.info(f"✅ Carpeta principal 'facturas' encontrada. ID: {ID_CARPETA_PRINCIPAL}")
+        logger.info(f" Carpeta principal 'facturas' encontrada. ID: {ID_CARPETA_PRINCIPAL}")
         
         # Buscar carpeta local 'mes en curso'
         carpeta_mes_curso_local = os.path.join(directorio_raiz, 'mes en curso')
         
         if not os.path.exists(carpeta_mes_curso_local):
-            logger.error(f"❌ No existe la carpeta local: {carpeta_mes_curso_local}")
+            logger.error(f" No existe la carpeta local: {carpeta_mes_curso_local}")
             return False
         
         # Buscar o crear carpeta 'historico' en Drive
         carpeta_historico_drive = buscar_o_crear_carpeta(drive, ID_CARPETA_PRINCIPAL, 'historico')
         if not carpeta_historico_drive:
-            logger.error("❌ No se pudo obtener/crear carpeta 'historico' en Drive")
+            logger.error(" No se pudo obtener/crear carpeta 'historico' en Drive")
             return False
         
         # Obtener lista de archivos en carpeta local 'mes en curso'
@@ -816,9 +816,9 @@ def subir_mes_curso_a_historico():
                     if extension.lower() in extensiones_validas:
                         archivos_local.append(ruta_completa)
                     else:
-                        logger.debug(f"⏭️  Archivo omitido (extensión no válida): {archivo}")
+                        logger.debug(f"  Archivo omitido (extensión no válida): {archivo}")
         except Exception as e:
-            logger.error(f"❌ Error obteniendo archivos de {carpeta_mes_curso_local}: {e}")
+            logger.error(f" Error obteniendo archivos de {carpeta_mes_curso_local}: {e}")
             return False
         
         if not archivos_local:
@@ -848,37 +848,37 @@ def subir_mes_curso_a_historico():
                 ).execute()
                 
                 archivos_subidos += 1
-                logger.info(f"✅ Subido a histórico: {nombre_archivo}")
+                logger.info(f" Subido a histórico: {nombre_archivo}")
                 
             except Exception as e:
-                logger.error(f"❌ Error subiendo {os.path.basename(archivo_path)}: {e}")
+                logger.error(f" Error subiendo {os.path.basename(archivo_path)}: {e}")
                 continue
         
         logger.info(f"🎯 HISTÓRICO: {archivos_subidos}/{len(archivos_local)} archivos subidos exitosamente")
         return archivos_subidos > 0
 
     except Exception as e:
-        logger.error(f"❌ Error crítico en subida a histórico: {e}", exc_info=True)
+        logger.error(f" Error crítico en subida a histórico: {e}", exc_info=True)
         return False
 
 def verificar_acceso_carpetas():
     """Función para verificar acceso a las carpetas necesarias"""
     try:
-        logger.info("🔍 Verificando acceso a carpetas en Google Drive...")
+        logger.info(" Verificando acceso a carpetas en Google Drive...")
         drive = autenticar_drive()
         
         # Buscar carpeta principal
         carpeta_principal_id = _buscar_carpeta_por_nombre(drive, 'facturas')
         
         if not carpeta_principal_id:
-            logger.error("❌ No se encontró la carpeta 'facturas'")
+            logger.error(" No se encontró la carpeta 'facturas'")
             logger.info("💡 Asegúrate de:")
             logger.info("   1. Crear una carpeta llamada 'facturas' en tu Google Drive")
             logger.info("   2. Compartirla con el email de la Service Account")
             logger.info("   3. Dar permisos de 'Editor'")
             return False
         
-        logger.info("✅ Carpeta 'facturas' encontrada y accesible")
+        logger.info(" Carpeta 'facturas' encontrada y accesible")
         
         # Verificar subcarpetas
         subcarpetas = ['invoices_train', 'invoices_test', 'mes en curso', 'preventivos', 'correctivos', 'historico']
@@ -886,14 +886,14 @@ def verificar_acceso_carpetas():
         for carpeta in subcarpetas:
             carpeta_id = _buscar_carpeta_por_nombre(drive, carpeta, carpeta_principal_id)
             if carpeta_id:
-                logger.info(f"   ✅ {carpeta}: ENCONTRADA")
+                logger.info(f"    {carpeta}: ENCONTRADA")
             else:
-                logger.warning(f"   ⚠️  {carpeta}: NO ENCONTRADA (puedes crearla después)")
+                logger.warning(f"     {carpeta}: NO ENCONTRADA (puedes crearla después)")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ Error verificando acceso: {e}")
+        logger.error(f" Error verificando acceso: {e}")
         return False
 
 # Ejemplos de uso
