@@ -15,10 +15,22 @@ from app.utils import setup_logger
 logger = setup_logger(__name__)
 
 
+def is_running_in_ecs() -> bool:
+    """
+    Detecta si está corriendo en ECS usando Instance Metadata Service (IMDS)
+    
+    Returns:
+        bool: True si está corriendo en ECS, False en caso contrario
+    """
+    # ECS inyecta esta variable de entorno cuando el contenedor está corriendo
+    return os.getenv("ECS_CONTAINER_METADATA_URI") is not None
+
+
 def obtener_cliente_s3():
     """
     Obtiene un cliente de S3 configurado
-    Intenta usar credenciales de settings, si no están, usa las credenciales por defecto de boto3
+    - Si está en ECS, usa IAM role (no requiere access keys)
+    - Si no está en ECS, intenta usar credenciales de settings o variables de entorno
     
     Returns:
         boto3.client: Cliente de S3 o None si hay error
@@ -29,40 +41,57 @@ def obtener_cliente_s3():
             logger.error(" Nombre del bucket S3 no configurado (S3_BUCKET_NAME)")
             return None
         
-        # Verificar credenciales disponibles (prioridad: env vars > settings)
-        aws_key = os.getenv('AWS_ACCESS_KEY_ID') or settings.AWS_ACCESS_KEY_ID
-        aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY') or settings.AWS_SECRET_ACCESS_KEY
+        # Detectar si está corriendo en ECS
+        running_in_ecs = is_running_in_ecs()
         
-        logger.info(f" Verificando credenciales AWS:")
-        logger.info(f"   env AWS_ACCESS_KEY_ID: {' Configurado' if os.getenv('AWS_ACCESS_KEY_ID') else ' No configurado'}")
-        logger.info(f"   settings.AWS_ACCESS_KEY_ID: {' Configurado' if settings.AWS_ACCESS_KEY_ID else ' No configurado'}")
-        logger.info(f"   env AWS_SECRET_ACCESS_KEY: {' Configurado' if os.getenv('AWS_SECRET_ACCESS_KEY') else ' No configurado'}")
-        logger.info(f"   settings.AWS_SECRET_ACCESS_KEY: {' Configurado' if settings.AWS_SECRET_ACCESS_KEY else ' No configurado'}")
-        logger.info(f"   Bucket: {settings.S3_BUCKET_NAME}")
-        
-        # Intentar usar credenciales de variables de entorno o settings
-        if aws_key and aws_secret:
-            logger.info(" Usando credenciales de AWS")
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=aws_key,
-                aws_secret_access_key=aws_secret,
-                region_name=settings.AWS_REGION
-            )
-        else:
-            # Intentar usar credenciales por defecto de boto3 (variables de entorno, ~/.aws/credentials, etc.)
-            logger.warning("  No se encontraron credenciales explícitas, intentando usar credenciales por defecto de boto3...")
+        if running_in_ecs:
+            # En ECS, usar IAM role (boto3 lo detecta automáticamente)
+            logger.info("🚀 Detectado: Ejecutándose en ECS - Usando IAM role para S3")
             try:
                 s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
-                logger.info(" Cliente S3 creado con credenciales por defecto de boto3")
-            except NoCredentialsError as e:
-                logger.error(" No se encontraron credenciales de AWS")
-                logger.error("   Configura AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en:")
-                logger.error("   - Archivo .env en la raíz del proyecto (y reinicia el contenedor)")
-                logger.error("   - Variables de entorno del sistema")
-                logger.error("   - Archivo ~/.aws/credentials")
-                logger.error("   - O agrega env_file: - ../.env en docker-compose.yml")
+                logger.info("✅ Cliente S3 creado usando IAM role de ECS")
+                return s3_client
+            except Exception as e:
+                logger.error(f" Error creando cliente S3 con IAM role: {e}")
                 return None
+        else:
+            # No está en ECS, usar credenciales explícitas
+            logger.info("💻 Ejecutándose fuera de ECS - Usando credenciales explícitas")
+            
+            # Verificar credenciales disponibles (prioridad: env vars > settings)
+            aws_key = os.getenv('AWS_ACCESS_KEY_ID') or settings.AWS_ACCESS_KEY_ID
+            aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY') or settings.AWS_SECRET_ACCESS_KEY
+            
+            logger.debug(f" Verificando credenciales AWS:")
+            logger.debug(f"   env AWS_ACCESS_KEY_ID: {' Configurado' if os.getenv('AWS_ACCESS_KEY_ID') else ' No configurado'}")
+            logger.debug(f"   settings.AWS_ACCESS_KEY_ID: {' Configurado' if settings.AWS_ACCESS_KEY_ID else ' No configurado'}")
+            logger.debug(f"   env AWS_SECRET_ACCESS_KEY: {' Configurado' if os.getenv('AWS_SECRET_ACCESS_KEY') else ' No configurado'}")
+            logger.debug(f"   settings.AWS_SECRET_ACCESS_KEY: {' Configurado' if settings.AWS_SECRET_ACCESS_KEY else ' No configurado'}")
+            logger.debug(f"   Bucket: {settings.S3_BUCKET_NAME}")
+            
+            # Intentar usar credenciales de variables de entorno o settings
+            if aws_key and aws_secret:
+                logger.info(" Usando credenciales explícitas de AWS")
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=aws_key,
+                    aws_secret_access_key=aws_secret,
+                    region_name=settings.AWS_REGION
+                )
+            else:
+                # Intentar usar credenciales por defecto de boto3 (variables de entorno, ~/.aws/credentials, etc.)
+                logger.warning("  No se encontraron credenciales explícitas, intentando usar credenciales por defecto de boto3...")
+                try:
+                    s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
+                    logger.info(" Cliente S3 creado con credenciales por defecto de boto3")
+                except NoCredentialsError as e:
+                    logger.error(" No se encontraron credenciales de AWS")
+                    logger.error("   Configura AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en:")
+                    logger.error("   - Archivo .env en la raíz del proyecto (y reinicia el contenedor)")
+                    logger.error("   - Variables de entorno del sistema")
+                    logger.error("   - Archivo ~/.aws/credentials")
+                    logger.error("   - O agrega env_file: - ../.env en docker-compose.yml")
+                    return None
         
         logger.debug(" Cliente S3 creado exitosamente")
         return s3_client

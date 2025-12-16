@@ -34,6 +34,14 @@ from app.utils import setup_logger
 
 logger = setup_logger(__name__)
 
+# AWS Secrets Manager integration (opcional)
+try:
+    from app.aws_integration.secrets_manager import SecretsManagerClient
+    SECRETS_MANAGER_AVAILABLE = True
+except ImportError:
+    SECRETS_MANAGER_AVAILABLE = False
+    logger.debug("Secrets Manager integration not available (optional)")
+
 Base = declarative_base()
 
 
@@ -131,10 +139,83 @@ class TrackingEntrenamiento(Base):
     notes = Column(Text, nullable=True)
 
 
+# ========== FUNCIONES DE AWS SECRETS MANAGER ==========
+
+async def get_db_credentials_from_secrets_manager():
+    """
+    Obtiene credenciales de MySQL desde AWS Secrets Manager
+    
+    Returns:
+        dict: Diccionario con credenciales (user, password, host, database, port) o None si hay error
+    """
+    USE_SECRETS_MANAGER = os.getenv("USE_SECRETS_MANAGER", "false").lower() == "true"
+    
+    if not USE_SECRETS_MANAGER:
+        logger.debug("Secrets Manager disabled (USE_SECRETS_MANAGER=false)")
+        return None
+    
+    if not SECRETS_MANAGER_AVAILABLE:
+        logger.warning("  Secrets Manager not available (module not imported)")
+        return None
+    
+    try:
+        secret_name = os.getenv("MYSQL_SECRET_NAME", "textil/mysql/credentials")
+        logger.info(f" Obteniendo credenciales MySQL desde Secrets Manager: {secret_name}")
+        
+        async with SecretsManagerClient() as sm_client:
+            credentials = await sm_client.get_secret(secret_name)
+            
+            if credentials:
+                logger.info("✅ Credenciales obtenidas desde Secrets Manager")
+                return credentials
+            else:
+                logger.warning("  No se pudieron obtener credenciales desde Secrets Manager")
+                return None
+                
+    except Exception as e:
+        logger.error(f" Error obteniendo credenciales desde Secrets Manager: {e}", exc_info=True)
+        return None
+
+
+def get_mysql_uri_from_credentials(credentials: dict) -> str:
+    """
+    Construye la URI de MySQL desde un diccionario de credenciales
+    
+    Args:
+        credentials: Diccionario con user, password, host, database, port
+    
+    Returns:
+        str: URI de conexión MySQL
+    """
+    user = credentials.get("user") or credentials.get("username") or settings.MYSQL_USER
+    password = credentials.get("password") or settings.MYSQL_PASSWORD
+    host = credentials.get("host") or settings.MYSQL_HOST
+    database = credentials.get("database") or credentials.get("db") or settings.MYSQL_DATABASE
+    port = credentials.get("port") or settings.MYSQL_PORT
+    
+    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+
+
 # ========== CONEXIÓN Y SESIÓN ==========
 
+# Intentar obtener credenciales de Secrets Manager (solo si está habilitado)
+# Si falla o no está habilitado, usar variables de entorno normales
+_mysql_uri = settings.MYSQL_URI
+
+# Nota: La obtención de credenciales desde Secrets Manager es asíncrona,
+# pero create_engine necesita una URI síncrona. Por ahora, usamos las credenciales
+# de settings por defecto. En el futuro, se podría hacer una inicialización asíncrona
+# o usar un patrón de lazy loading.
+
+# Si USE_SECRETS_MANAGER está habilitado, se intentará obtener las credenciales
+# de forma asíncrona cuando sea necesario, pero para la inicialización del engine
+# usamos las credenciales de settings como fallback.
+if os.getenv("USE_SECRETS_MANAGER", "false").lower() == "true":
+    logger.info("ℹ️  USE_SECRETS_MANAGER enabled - Credenciales se obtendrán desde Secrets Manager cuando sea necesario")
+    logger.info("   Usando credenciales de settings como fallback para inicialización")
+
 engine = create_engine(
-    settings.MYSQL_URI,
+    _mysql_uri,
     pool_pre_ping=True,
     pool_recycle=3600,
     echo=settings.DEBUG

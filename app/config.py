@@ -4,6 +4,10 @@ Gestiona todas las variables de entorno
 """
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -84,3 +88,19 @@ class Settings(BaseSettings):
 
 # Instancia global
 settings = Settings()
+
+# AWS Configuration (opcional)
+USE_AWS_INTEGRATION = os.getenv("USE_AWS_INTEGRATION", "false").lower() == "true"
+
+if USE_AWS_INTEGRATION:
+    try:
+        from app.config_aws import aws_settings, AWSSettings
+        logger.info("✅ AWS integration enabled")
+        logger.info(f"   AWS Region: {aws_settings.aws_region}")
+        logger.info(f"   ECS Cluster: {aws_settings.ecs_cluster_name}")
+    except ImportError:
+        logger.warning("⚠️  USE_AWS_INTEGRATION=True but AWS modules not available")
+        logger.warning("   Install requirements/aws.txt to enable AWS integration")
+        USE_AWS_INTEGRATION = False
+else:
+    logger.debug("AWS integration disabled (USE_AWS_INTEGRATION=false or not set)")

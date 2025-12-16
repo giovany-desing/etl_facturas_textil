@@ -15,6 +15,17 @@ from app import drive, preprocessing, model, predict, ocr, database
 from app import s3_utils
 import shutil
 
+# AWS Integration (opcional)
+try:
+    from app.health import router as health_router
+    from app.config_aws import aws_settings
+    from app.aws_integration.ecs_client import ECSClient
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
+    logger_temp = setup_logger(__name__)
+    logger_temp.debug("AWS integration modules not available (optional)")
+
 logger = setup_logger(__name__)
 
 # Inicializar FastAPI
@@ -23,6 +34,11 @@ app = FastAPI(
     description="API unificada para ETL y entrenamiento de facturas",
     version=settings.VERSION
 )
+
+# Include health router for AWS ALB health checks (if available)
+if AWS_AVAILABLE:
+    app.include_router(health_router, tags=["health"])
+    logger.info("Health check endpoints enabled for AWS ALB")
 
 # ========== ESTADOS GLOBALES ==========
 
@@ -962,18 +978,89 @@ async def train_model(background_tasks: BackgroundTasks):
     
     logger.info(" Prerrequisitos verificados. Iniciando entrenamiento...")
 
-    training_status.update({
-        "estado": "en_cola",
-        "etapa_actual": "pendiente",
-        "progreso": 0
-    })
+    # AWS Integration: Opción para lanzar ECS task en lugar de entrenamiento local
+    USE_AWS_ECS = os.getenv("USE_AWS_ECS", "false").lower() == "true"
+    
+    if USE_AWS_ECS and AWS_AVAILABLE:
+        try:
+            logger.info("🚀 Lanzando entrenamiento en ECS Fargate...")
+            
+            # Obtener configuración de AWS
+            cluster_name = aws_settings.ecs_cluster_name
+            task_definition = aws_settings.ecs_task_definition_training
+            subnets = aws_settings.ecs_subnets
+            security_groups = aws_settings.ecs_security_groups
+            
+            if not subnets or not security_groups:
+                logger.warning("  ECS subnets o security groups no configurados, usando entrenamiento local")
+                USE_AWS_ECS = False
+            else:
+                # Lanzar ECS task
+                async with ECSClient(region_name=aws_settings.aws_region) as ecs_client:
+                    container_overrides = [
+                        {
+                            "name": "trainer",
+                            "environment": [
+                                {"name": "TRAIN_BATCH_SIZE", "value": str(settings.TRAIN_BATCH_SIZE)},
+                                {"name": "TRAIN_EPOCHS", "value": str(settings.TRAIN_EPOCHS)},
+                            ]
+                        }
+                    ]
+                    
+                    tasks = await ecs_client.run_task(
+                        cluster=cluster_name,
+                        task_definition=task_definition,
+                        subnets=subnets,
+                        security_groups=security_groups,
+                        assign_public_ip=False,  # Usar NAT Gateway
+                        container_overrides=container_overrides,
+                        started_by="fastapi-api"
+                    )
+                    
+                    if tasks and len(tasks) > 0:
+                        task_arn = tasks[0].get("taskArn")
+                        logger.info(f"✅ ECS task lanzada exitosamente: {task_arn}")
+                        
+                        training_status.update({
+                            "estado": "ejecutando",
+                            "etapa_actual": "ecs_task",
+                            "progreso": 5,
+                            "mensaje": f"Entrenamiento iniciado en ECS: {task_arn}",
+                            "inicio": datetime.now().isoformat()
+                        })
+                        
+                        return ProcessingResponse(
+                            mensaje=f"Entrenamiento iniciado en ECS Fargate. Task ARN: {task_arn}",
+                            estado="ejecutando"
+                        )
+                    else:
+                        logger.error(" No se pudo lanzar la ECS task")
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Error al lanzar ECS task para entrenamiento"
+                        )
+                        
+        except Exception as e:
+            logger.error(f" Error lanzando ECS task: {e}", exc_info=True)
+            logger.warning("  Fallback a entrenamiento local...")
+            # Continuar con entrenamiento local como fallback
+            USE_AWS_ECS = False
+    
+    # Entrenamiento local (lógica original)
+    if not USE_AWS_ECS:
+        logger.info("📦 Usando entrenamiento local (no ECS)")
+        training_status.update({
+            "estado": "en_cola",
+            "etapa_actual": "pendiente",
+            "progreso": 0
+        })
 
-    background_tasks.add_task(ejecutar_entrenamiento_completo)
+        background_tasks.add_task(ejecutar_entrenamiento_completo)
 
-    return ProcessingResponse(
-        mensaje="Entrenamiento iniciado en segundo plano",
-        estado="en_cola"
-    )
+        return ProcessingResponse(
+            mensaje="Entrenamiento iniciado en segundo plano (local)",
+            estado="en_cola"
+        )
 
 
 @app.get("/train_model/status", response_model=ProcessingStatus)

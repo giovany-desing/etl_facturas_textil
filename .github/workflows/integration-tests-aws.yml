@@ -1,0 +1,308 @@
+name: Integration Tests AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ecs
+          - api
+          - s3
+          - secrets
+  schedule:
+    # Ejecutar diariamente a las 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER_NAME: etl-facturas-cluster
+  ALB_DNS_NAME: ${{ secrets.ALB_DNS_NAME }}
+
+concurrency:
+  group: integration-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-ecs-deployment:
+    name: Test ECS Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'ecs' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Check FastAPI service health
+        run: |
+          chmod +x scripts/monitoring/check-ecs-health.sh
+          ./scripts/monitoring/check-ecs-health.sh \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service fastapi-service \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Check MLflow service health
+        run: |
+          ./scripts/monitoring/check-ecs-health.sh \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service mlflow-service \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Get ECS service details
+        run: |
+          echo "### ECS Services Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          for SERVICE in fastapi-service mlflow-service; do
+            RUNNING=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER_NAME }} \
+              --services $SERVICE \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].runningCount' \
+              --output text)
+            
+            DESIRED=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER_NAME }} \
+              --services $SERVICE \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].desiredCount' \
+              --output text)
+            
+            echo "- **$SERVICE**: $RUNNING/$DESIRED tasks running" >> $GITHUB_STEP_SUMMARY
+          done
+
+  test-api-endpoints:
+    name: Test API Endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'api' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for ALB to be ready
+        run: |
+          echo "Waiting for ALB to be ready..."
+          sleep 10
+
+      - name: Test /health endpoint
+        run: |
+          echo "Testing /health endpoint..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.ALB_DNS_NAME }}/health || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ /health endpoint returned 200"
+          else
+            echo "❌ /health endpoint returned $RESPONSE"
+            exit 1
+          fi
+
+      - name: Test /live endpoint
+        run: |
+          echo "Testing /live endpoint..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.ALB_DNS_NAME }}/live || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ /live endpoint returned 200"
+          else
+            echo "❌ /live endpoint returned $RESPONSE"
+            exit 1
+          fi
+
+      - name: Test /ready endpoint
+        run: |
+          echo "Testing /ready endpoint..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.ALB_DNS_NAME }}/ready || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ /ready endpoint returned 200"
+          else
+            echo "❌ /ready endpoint returned $RESPONSE"
+            exit 1
+          fi
+
+      - name: Test health check response
+        run: |
+          echo "Testing health check response structure..."
+          RESPONSE=$(curl -s https://${{ env.ALB_DNS_NAME }}/health)
+          
+          if echo "$RESPONSE" | jq -e '.status' > /dev/null 2>&1; then
+            echo "✅ Health check response is valid JSON"
+            echo "$RESPONSE" | jq .
+          else
+            echo "❌ Health check response is not valid JSON"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "### ✅ API Endpoints Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **/health**: ✅ 200 OK" >> $GITHUB_STEP_SUMMARY
+          echo "- **/live**: ✅ 200 OK" >> $GITHUB_STEP_SUMMARY
+          echo "- **/ready**: ✅ 200 OK" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ALB DNS**: ${{ env.ALB_DNS_NAME }}" >> $GITHUB_STEP_SUMMARY
+
+  test-s3-access:
+    name: Test S3 Access
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 's3' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Test S3 bucket access
+        run: |
+          echo "Testing S3 bucket access..."
+          
+          BUCKETS=(
+            "mes-en-curso"
+            "textil-modelos"
+            "textil-mlflow-artifacts"
+            "etl-facturas-airflow-dags"
+          )
+          
+          for BUCKET in "${BUCKETS[@]}"; do
+            echo "Testing bucket: $BUCKET"
+            
+            if aws s3 ls "s3://$BUCKET" > /dev/null 2>&1; then
+              echo "✅ Bucket $BUCKET is accessible"
+            else
+              echo "❌ Bucket $BUCKET is not accessible"
+              exit 1
+            fi
+          done
+
+      - name: Test S3 bucket policies
+        run: |
+          echo "### S3 Buckets Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          for BUCKET in mes-en-curso textil-modelos textil-mlflow-artifacts etl-facturas-airflow-dags; do
+            if aws s3 ls "s3://$BUCKET" > /dev/null 2>&1; then
+              echo "- **$BUCKET**: ✅ Accessible" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **$BUCKET**: ❌ Not accessible" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+  test-secrets-manager:
+    name: Test Secrets Manager
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'secrets' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Test Secrets Manager access
+        run: |
+          echo "Testing Secrets Manager access..."
+          
+          SECRETS=(
+            "textil/mysql/credentials"
+            "textil/aws/credentials"
+            "textil/google/oauth"
+          )
+          
+          for SECRET in "${SECRETS[@]}"; do
+            echo "Testing secret: $SECRET"
+            
+            if aws secretsmanager describe-secret \
+              --secret-id "$SECRET" \
+              --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+              echo "✅ Secret $SECRET exists"
+            else
+              echo "❌ Secret $SECRET does not exist"
+              exit 1
+            fi
+          done
+
+      - name: Verify secret structure
+        run: |
+          echo "Verifying secret structure..."
+          
+          SECRET_VALUE=$(aws secretsmanager get-secret-value \
+            --secret-id "textil/mysql/credentials" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'SecretString' \
+            --output text 2>/dev/null)
+          
+          if echo "$SECRET_VALUE" | jq -e '.user, .password, .host, .database' > /dev/null 2>&1; then
+            echo "✅ MySQL credentials secret has correct structure"
+          else
+            echo "❌ MySQL credentials secret structure is invalid"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "### ✅ Secrets Manager Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **textil/mysql/credentials**: ✅ Exists" >> $GITHUB_STEP_SUMMARY
+          echo "- **textil/aws/credentials**: ✅ Exists" >> $GITHUB_STEP_SUMMARY
+          echo "- **textil/google/oauth**: ✅ Exists" >> $GITHUB_STEP_SUMMARY
+
+  notify-results:
+    name: Notify Test Results
+    runs-on: ubuntu-latest
+    needs: [test-ecs-deployment, test-api-endpoints, test-s3-access, test-secrets-manager]
+    if: always()
+    
+    steps:
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="✅"
+          if [ "${{ needs.test-ecs-deployment.result }}" != "success" ] || \
+             [ "${{ needs.test-api-endpoints.result }}" != "success" ] || \
+             [ "${{ needs.test-s3-access.result }}" != "success" ] || \
+             [ "${{ needs.test-secrets-manager.result }}" != "success" ]; then
+            STATUS="❌"
+          fi
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${STATUS} Integration Tests AWS Results\n- ECS: ${{ needs.test-ecs-deployment.result }}\n- API: ${{ needs.test-api-endpoints.result }}\n- S3: ${{ needs.test-s3-access.result }}\n- Secrets: ${{ needs.test-secrets-manager.result }}\n- Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            $SLACK_WEBHOOK_URL || true
+

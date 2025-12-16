@@ -11,8 +11,17 @@ from typing import Dict, Any, Optional
 from app.config import settings
 from app.utils import setup_logger
 from app.database import insertar_tracking_entrenamiento
+import os
 
 logger = setup_logger(__name__)
+
+# AWS CloudWatch integration (opcional)
+try:
+    from app.aws_integration.cloudwatch_logger import CloudWatchLogger
+    CLOUDWATCH_AVAILABLE = True
+except ImportError:
+    CLOUDWATCH_AVAILABLE = False
+    logger.debug("CloudWatch integration not available (optional)")
 
 # Directorio raíz del proyecto
 DIRECTORIO_RAIZ = settings.BASE_DIR
@@ -312,6 +321,87 @@ def entrenar_modelo():
         logger.warning("  El entrenamiento fue exitoso, pero no se pudo guardar el tracking")
     
     logger.info(" Proceso de entrenamiento y evaluación completado")
+    
+    # AWS Integration: Enviar métricas a CloudWatch si está habilitado
+    # Nota: CloudWatchLogger es async, pero esta función es síncrona
+    # Se envía en background o se omite si no se puede hacer async
+    USE_AWS_INTEGRATION = os.getenv("USE_AWS_INTEGRATION", "false").lower() == "true"
+    
+    if USE_AWS_INTEGRATION and CLOUDWATCH_AVAILABLE:
+        try:
+            logger.info("📊 Enviando métricas de entrenamiento a CloudWatch...")
+            
+            # Usar asyncio para ejecutar código async desde función síncrona
+            import asyncio
+            
+            async def send_cloudwatch_metrics():
+                """Función async helper para enviar métricas a CloudWatch"""
+                try:
+                    async with CloudWatchLogger() as cw_logger:
+                        # Enviar métricas principales
+                        await cw_logger.log_metric(
+                            metric_name="TrainingAccuracy",
+                            value=float(test_accuracy),
+                            unit="Percent",
+                            dimensions=[{"Name": "Model", "Value": "facturas_classification"}]
+                        )
+                        
+                        await cw_logger.log_metric(
+                            metric_name="TrainingLoss",
+                            value=float(test_loss),
+                            unit="None",
+                            dimensions=[{"Name": "Model", "Value": "facturas_classification"}]
+                        )
+                        
+                        await cw_logger.log_metric(
+                            metric_name="TrainingPrecision",
+                            value=float(test_precision),
+                            unit="Percent",
+                            dimensions=[{"Name": "Model", "Value": "facturas_classification"}]
+                        )
+                        
+                        await cw_logger.log_metric(
+                            metric_name="TrainingRecall",
+                            value=float(test_recall),
+                            unit="Percent",
+                            dimensions=[{"Name": "Model", "Value": "facturas_classification"}]
+                        )
+                        
+                        # Log de completion
+                        log_message = (
+                            f"Training completed - Accuracy: {test_accuracy:.4f}, "
+                            f"Loss: {test_loss:.4f}, Precision: {test_precision:.4f}, "
+                            f"Recall: {test_recall:.4f}"
+                        )
+                        await cw_logger.log_event(
+                            message=log_message,
+                            log_stream_name="training-completion"
+                        )
+                        
+                        logger.info("✅ Métricas enviadas a CloudWatch exitosamente")
+                except Exception as e:
+                    logger.warning(f"  Error enviando métricas a CloudWatch: {e}")
+            
+            # Ejecutar async function desde función síncrona
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Si ya hay un loop corriendo, crear tarea en background
+                    asyncio.create_task(send_cloudwatch_metrics())
+                    logger.debug(" Métricas de CloudWatch programadas en background")
+                else:
+                    # Si no hay loop, ejecutar directamente
+                    loop.run_until_complete(send_cloudwatch_metrics())
+            except RuntimeError:
+                # No hay event loop, crear uno nuevo
+                asyncio.run(send_cloudwatch_metrics())
+                
+        except Exception as e:
+            logger.warning(f"  Error configurando CloudWatch logging: {e}")
+            logger.warning("  El entrenamiento fue exitoso, pero no se pudieron enviar métricas")
+    else:
+        logger.debug("CloudWatch logging disabled (USE_AWS_INTEGRATION=false or module not available)")
+    
     return model, history, test_accuracy
 
 def graficar_resultados(history, carpeta_modelos):

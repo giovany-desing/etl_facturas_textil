@@ -1,0 +1,115 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/terraform/**'
+      - '.github/workflows/terraform-apply.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.0
+
+concurrency:
+  group: terraform-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://console.aws.amazon.com/ecs/v2/clusters
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        working-directory: infrastructure/terraform
+
+      - name: Show Plan
+        run: terraform show tfplan
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: infrastructure/terraform
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "vpc_id=$(terraform output -raw vpc_id 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+          echo "ecs_cluster_arn=$(terraform output -raw ecs_cluster_arn 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+          echo "alb_dns_name=$(terraform output -raw alb_dns_name 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+          echo "mwaa_webserver_url=$(terraform output -raw mwaa_webserver_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+        working-directory: infrastructure/terraform
+
+      - name: Summary
+        run: |
+          echo "### ✅ Terraform Apply Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **VPC ID**: ${{ steps.outputs.outputs.vpc_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECS Cluster ARN**: ${{ steps.outputs.outputs.ecs_cluster_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ALB DNS Name**: ${{ steps.outputs.outputs.alb_dns_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **MWAA Web Server URL**: ${{ steps.outputs.outputs.mwaa_webserver_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Success
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"✅ Terraform Apply completed successfully\n- VPC: ${{ steps.outputs.outputs.vpc_id }}\n- ECS Cluster: ${{ steps.outputs.outputs.ecs_cluster_arn }}\n- ALB: ${{ steps.outputs.outputs.alb_dns_name }}\n- Commit: ${{ github.sha }}\"}" \
+              $SLACK_WEBHOOK_URL || true
+          fi
+
+      - name: Notify Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"❌ Terraform Apply failed\n- Commit: ${{ github.sha }}\n- Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+              $SLACK_WEBHOOK_URL || true
+          fi
+

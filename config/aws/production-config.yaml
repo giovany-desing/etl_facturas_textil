@@ -1,0 +1,136 @@
+# ========== AWS CONFIGURATION - PRODUCTION ==========
+# Configuración YAML para ambiente de producción
+# NOTA: Todos los secrets vienen de AWS Secrets Manager
+
+aws:
+  region: us-east-1
+  account_id: "REPLACE_WITH_ACCOUNT_ID"
+  # No usar endpoint_url en producción
+
+ecs:
+  cluster: etl-facturas-cluster
+  
+  services:
+    fastapi:
+      cpu: 1024
+      memory: 2048
+      desired_count: 2
+      task_definition: fastapi-service
+      health_check_path: /health
+      min_capacity: 2
+      max_capacity: 10
+      target_cpu_utilization: 70.0
+      target_memory_utilization: 80.0
+      
+    mlflow:
+      cpu: 512
+      memory: 1024
+      desired_count: 1
+      task_definition: mlflow-server
+      
+  task_definitions:
+    training:
+      cpu: 8192
+      memory: 32768
+      family: model-training
+
+network:
+  vpc:
+    cidr: "10.0.0.0/16"
+    
+  subnets:
+    private:
+      - subnet-prod-xxx
+      - subnet-prod-yyy
+    public:
+      - subnet-prod-public-xxx
+      - subnet-prod-public-yyy
+      
+  security_groups:
+    - sg-prod-xxx
+    - sg-prod-ecs-xxx
+    - sg-prod-alb-xxx
+    - sg-prod-mwaa-xxx
+
+s3:
+  buckets:
+    facturas: mes-en-curso
+    modelos: textil-modelos
+    mlflow: textil-mlflow-artifacts
+    airflow_dags: etl-facturas-airflow-dags
+    drift_data: textil-drift-data
+    alb_logs: etl-facturas-alb-logs
+
+database:
+  mysql:
+    host: textil.cof2oucystyr.us-east-1.rds.amazonaws.com
+    port: 3306
+    database: textil
+    username: samaca
+    # password desde Secrets Manager: textil/mysql/credentials
+
+mlflow:
+  tracking_uri: "http://mlflow-service.facturas-namespace:5001"
+  backend_store_uri: "mysql+pymysql://samaca:MYSQL_PASSWORD@textil.cof2oucystyr.us-east-1.rds.amazonaws.com:3306/mlflow"
+  artifact_root: "s3://textil-mlflow-artifacts/"
+
+cloudwatch:
+  log_groups:
+    fastapi: /ecs/fastapi
+    training: /ecs/model-training
+    mlflow: /ecs/mlflow
+    mwaa: /aws/mwaa/etl-facturas-airflow
+  namespace: ETLFacturasMLOps
+  
+  alarms:
+    fastapi_high_cpu:
+      threshold: 80.0
+      evaluation_periods: 2
+    fastapi_high_memory:
+      threshold: 85.0
+      evaluation_periods: 2
+    alb_5xx_errors:
+      threshold: 10
+      evaluation_periods: 1
+
+secrets_manager:
+  prefix: textil
+  secrets:
+    mysql: textil/mysql/credentials
+    aws: textil/aws/credentials
+    google_oauth: textil/google/oauth
+    slack_webhook: textil/slack/webhook
+
+mwaa:
+  environment_name: etl-facturas-airflow
+  environment_class: mw1.small
+  max_workers: 2
+  dag_s3_bucket: etl-facturas-airflow-dags
+  airflow_version: "2.8.1"
+
+alb:
+  enabled: true
+  dns_name: etl-facturas-prod.us-east-1.elb.amazonaws.com
+  target_group_arn: arn:aws:elasticloadbalancing:us-east-1:REPLACE_WITH_ACCOUNT_ID:targetgroup/fastapi-prod/xxx
+  enable_https: true
+  certificate_arn: arn:aws:acm:us-east-1:REPLACE_WITH_ACCOUNT_ID:certificate/xxx
+
+ecr:
+  repositories:
+    fastapi: etl-facturas-fastapi
+    training: etl-facturas-training
+    mlflow: etl-facturas-mlflow
+
+iam:
+  roles:
+    ecs_task_execution: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/etl-facturas-ecs-task-execution-role
+    ecs_task: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/etl-facturas-ecs-task-role
+    mwaa_execution: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/etl-facturas-mwaa-execution-role
+    ecs_autoscaling: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/etl-facturas-ecs-autoscaling-role
+
+tags:
+  Environment: production
+  Project: ETL-Facturas
+  ManagedBy: Terraform
+  CostCenter: "MLOps"
+

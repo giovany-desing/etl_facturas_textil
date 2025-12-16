@@ -1,0 +1,107 @@
+# ========== AWS CONFIGURATION - DEVELOPMENT ==========
+# Configuración YAML para ambiente de desarrollo
+# Usar LocalStack para simular AWS localmente
+
+aws:
+  region: us-east-1
+  account_id: "REPLACE_WITH_ACCOUNT_ID"
+  # LocalStack endpoint para desarrollo local
+  endpoint_url: "http://localhost:4566"
+
+ecs:
+  cluster: etl-facturas-cluster-dev
+  
+  services:
+    fastapi:
+      cpu: 512
+      memory: 1024
+      desired_count: 1
+      task_definition: fastapi-service-dev
+      health_check_path: /health
+      
+    mlflow:
+      cpu: 256
+      memory: 512
+      desired_count: 1
+      task_definition: mlflow-server-dev
+      
+  task_definitions:
+    training:
+      cpu: 4096
+      memory: 16384
+      family: model-training-dev
+
+network:
+  vpc:
+    cidr: "10.1.0.0/16"
+    
+  subnets:
+    private:
+      - subnet-dev-xxx
+      - subnet-dev-yyy
+    public:
+      - subnet-dev-public-xxx
+      - subnet-dev-public-yyy
+      
+  security_groups:
+    - sg-dev-xxx
+    - sg-dev-ecs-xxx
+
+s3:
+  buckets:
+    facturas: mes-en-curso-dev
+    modelos: textil-modelos-dev
+    mlflow: textil-mlflow-artifacts-dev
+    airflow_dags: etl-facturas-airflow-dags-dev
+    drift_data: textil-drift-data-dev
+
+database:
+  mysql:
+    host: localhost
+    port: 3306
+    database: textil_dev
+    username: root
+    # password desde Secrets Manager o .env local
+
+mlflow:
+  tracking_uri: "http://localhost:5001"
+  backend_store_uri: "sqlite:///mlflow.db"
+  artifact_root: "./mlflow-artifacts"
+
+cloudwatch:
+  log_groups:
+    fastapi: /ecs/facturas-etl-dev
+    training: /ecs/model-training-dev
+    mlflow: /ecs/mlflow-dev
+  namespace: ETLFacturasDev
+
+secrets_manager:
+  prefix: textil/dev
+  secrets:
+    mysql: textil/dev/mysql/credentials
+    aws: textil/dev/aws/credentials
+    google_oauth: textil/dev/google/oauth
+    slack_webhook: textil/dev/slack/webhook
+
+mwaa:
+  environment_name: etl-facturas-airflow-dev
+  environment_class: mw1.small
+  max_workers: 1
+  dag_s3_bucket: etl-facturas-airflow-dags-dev
+
+alb:
+  enabled: false  # En dev, usar directamente el servicio
+  dns_name: ""
+  target_group_arn: ""
+
+iam:
+  roles:
+    ecs_task_execution: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/ecsTaskExecutionRole-dev
+    ecs_task: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/ecsTaskRole-dev
+    mwaa_execution: arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/mwaa-execution-role-dev
+
+tags:
+  Environment: dev
+  Project: ETL-Facturas
+  ManagedBy: Terraform
+

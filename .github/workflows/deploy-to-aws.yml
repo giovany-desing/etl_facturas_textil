@@ -1,0 +1,246 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'modelos/**'
+      - 'aws/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-to-aws.yml'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy (fastapi, mlflow, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - fastapi
+          - mlflow
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER_NAME: etl-facturas-cluster
+
+concurrency:
+  group: deploy-aws-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-images:
+    name: Build Docker Images
+    uses: ./.github/workflows/build-and-push-ecr.yml
+    secrets: inherit
+
+  deploy-fastapi:
+    name: Deploy FastAPI Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-images
+    if: github.event.inputs.service == 'all' || github.event.inputs.service == 'fastapi' || github.event_name == 'push'
+    environment:
+      name: production
+      url: https://${{ secrets.ALB_DNS_NAME }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Deploy FastAPI service
+        run: |
+          chmod +x scripts/deployment/deploy-ecs-service.sh
+          ./scripts/deployment/deploy-ecs-service.sh \
+            --service fastapi-service \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --task-def aws/ecs/task-definitions/fastapi-service.json \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for service to stabilize..."
+          sleep 30
+          chmod +x scripts/monitoring/check-ecs-health.sh
+          ./scripts/monitoring/check-ecs-health.sh \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service fastapi-service \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Deployment summary
+        run: |
+          echo "### ✅ FastAPI Service Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: fastapi-service" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: ${{ env.ECS_CLUSTER_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://${{ secrets.ALB_DNS_NAME }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-mlflow:
+    name: Deploy MLflow Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-images
+    if: github.event.inputs.service == 'all' || github.event.inputs.service == 'mlflow' || github.event_name == 'push'
+    environment:
+      name: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Deploy MLflow service
+        run: |
+          chmod +x scripts/deployment/deploy-ecs-service.sh
+          ./scripts/deployment/deploy-ecs-service.sh \
+            --service mlflow-service \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --task-def aws/ecs/task-definitions/mlflow-server.json \
+            --region ${{ env.AWS_REGION }} \
+            --wait
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for service to stabilize..."
+          sleep 30
+          chmod +x scripts/monitoring/check-ecs-health.sh
+          ./scripts/monitoring/check-ecs-health.sh \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service mlflow-service \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Deployment summary
+        run: |
+          echo "### ✅ MLflow Service Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: mlflow-service" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: ${{ env.ECS_CLUSTER_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  sync-airflow-dags:
+    name: Sync Airflow DAGs to S3
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [deploy-fastapi, deploy-mlflow]
+    if: always()
+    environment:
+      name: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get MWAA bucket name
+        id: get-bucket
+        run: |
+          BUCKET=$(aws mwaa get-environment \
+            --name etl-facturas-airflow \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Environment.SourceBucketArn' \
+            --output text 2>/dev/null | awk -F':::' '{print $NF}' | awk -F'/' '{print $NF}')
+          
+          if [ -z "$BUCKET" ]; then
+            BUCKET="${{ secrets.MWAA_DAG_S3_BUCKET }}"
+          fi
+          
+          echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
+          echo "Using MWAA bucket: $BUCKET"
+
+      - name: Sync DAGs to S3
+        run: |
+          aws s3 sync airflow/dags/ \
+            s3://${{ steps.get-bucket.outputs.bucket }}/dags/ \
+            --delete \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ DAGs synced to S3"
+
+      - name: Sync requirements to S3
+        run: |
+          aws s3 cp aws/mwaa/requirements.txt \
+            s3://${{ steps.get-bucket.outputs.bucket }}/requirements.txt \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Requirements synced to S3"
+
+      - name: Summary
+        run: |
+          echo "### ✅ Airflow DAGs Synced" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bucket**: ${{ steps.get-bucket.outputs.bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Path**: /dags/" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  notify-success:
+    name: Notify Deployment Success
+    runs-on: ubuntu-latest
+    needs: [deploy-fastapi, deploy-mlflow, sync-airflow-dags]
+    if: always() && (needs.deploy-fastapi.result == 'success' || needs.deploy-mlflow.result == 'success')
+    
+    steps:
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="✅"
+          if [ "${{ needs.deploy-fastapi.result }}" != "success" ] || [ "${{ needs.deploy-mlflow.result }}" != "success" ]; then
+            STATUS="⚠️"
+          fi
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${STATUS} Deployment to AWS completed\n- FastAPI: ${{ needs.deploy-fastapi.result }}\n- MLflow: ${{ needs.deploy-mlflow.result }}\n- DAGs: ${{ needs.sync-airflow-dags.result }}\n- Commit: ${{ github.sha }}\n- Branch: ${{ github.ref_name }}\"}" \
+            $SLACK_WEBHOOK_URL || true
+
+  notify-failure:
+    name: Notify Deployment Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-fastapi, deploy-mlflow, sync-airflow-dags]
+    if: failure()
+    
+    steps:
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"❌ Deployment to AWS failed\n- FastAPI: ${{ needs.deploy-fastapi.result }}\n- MLflow: ${{ needs.deploy-mlflow.result }}\n- DAGs: ${{ needs.sync-airflow-dags.result }}\n- Commit: ${{ github.sha }}\n- Branch: ${{ github.ref_name }}\n- Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            $SLACK_WEBHOOK_URL || true
+

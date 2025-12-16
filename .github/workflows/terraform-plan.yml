@@ -1,0 +1,124 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/terraform/**'
+      - '.github/workflows/terraform-plan.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.6.0
+
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: infrastructure/terraform
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend=false
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan -input=false
+        working-directory: infrastructure/terraform
+        continue-on-error: true
+
+      - name: Convert Plan to JSON
+        id: plan-json
+        if: steps.plan.outcome == 'success'
+        run: |
+          terraform show -json tfplan > tfplan.json
+          echo "plan_json=$(base64 -w 0 tfplan.json)" >> $GITHUB_OUTPUT
+        working-directory: infrastructure/terraform
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Plan 📖
+            ${{ steps.fmt.outcome == 'success' && '✅' || '❌' }} **Format Check**: ${{ steps.fmt.outcome == 'success' && 'Passed' || 'Failed' }}
+            ${{ steps.validate.outcome == 'success' && '✅' || '❌' }} **Validate**: ${{ steps.validate.outcome == 'success' && 'Passed' || 'Failed' }}
+            ${{ steps.plan.outcome == 'success' && '✅' || '❌' }} **Plan**: ${{ steps.plan.outcome == 'success' && 'Success' || 'Failed' }}
+            
+            <details><summary>Show Plan</summary>
+            
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            
+            </details>
+            
+            *Pushered by: @${{ github.actor }}, Workflow: ${{ github.workflow }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Upload Plan Artifacts
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/terraform/tfplan
+          retention-days: 5
+
+      - name: Summary
+        run: |
+          echo "### Terraform Plan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Format Check**: ${{ steps.fmt.outcome == 'success' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Validate**: ${{ steps.validate.outcome == 'success' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Plan**: ${{ steps.plan.outcome == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.plan.outcome }}" == "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Plan artifacts uploaded for review." >> $GITHUB_STEP_SUMMARY
+          fi
+
