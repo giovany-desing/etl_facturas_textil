@@ -1,6 +1,6 @@
 # ========== SECRETS MANAGER ==========
 # NOTA: Los valores de los secretos se populan usando el script:
-# scripts/migration/migrate-secrets.py
+# scripts/setup/setup-secrets.py
 # Estos recursos solo crean la estructura en Secrets Manager
 
 # Secreto para credenciales MySQL
@@ -55,13 +55,13 @@ resource "aws_secretsmanager_secret" "slack_webhook" {
 
 # ========== SECRET VERSIONS (OPCIONAL) ==========
 # Descomentar y configurar si quieres poblar los secretos desde Terraform
-# En producción, es mejor usar el script migrate-secrets.py
+# En producción, es mejor usar el script setup-secrets.py
 
 # resource "aws_secretsmanager_secret_version" "mysql_credentials" {
 #   secret_id = aws_secretsmanager_secret.mysql_credentials.id
 #   secret_string = jsonencode({
 #     user     = var.mysql_username
-#     password = "CHANGE_ME"  # Usar migrate-secrets.py para poblar
+#     password = "CHANGE_ME"  # Usar setup-secrets.py para poblar
 #     host     = var.mysql_host
 #     database = var.mysql_database
 #     port     = var.mysql_port

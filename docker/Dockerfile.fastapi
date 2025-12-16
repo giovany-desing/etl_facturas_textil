@@ -1,5 +1,10 @@
-# Dockerfile optimizado para FastAPI en AWS ECS
-# Multi-stage build para reducir tamaño final
+# Dockerfile optimizado para AWS ECS Fargate
+#
+# Multi-stage build para minimizar tamaño de imagen
+# Configurado para:
+# - Health checks del ALB
+# - Logging a CloudWatch
+# - IAM roles para acceso a S3/Secrets Manager
 FROM python:3.11-slim as builder
 
 # Metadatos

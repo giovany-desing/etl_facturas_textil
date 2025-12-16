@@ -1,5 +1,8 @@
-# Dockerfile optimizado para MLflow Tracking Server en AWS ECS
-# Minimalista - solo dependencias necesarias para MLflow
+# Dockerfile para MLflow tracking server en ECS
+#
+# Backend: RDS MySQL
+# Artifact store: S3
+# Configurado para internal service discovery
 FROM python:3.11-slim
 
 # Metadatos

@@ -1,10 +1,8 @@
 """
-Health check endpoints para AWS Application Load Balancer (ALB)
+Health checks para Application Load Balancer (ALB) de AWS.
 
-Proporciona endpoints para:
-- Health check completo (verifica DB, modelo)
-- Readiness check (aplicación lista para recibir tráfico)
-- Liveness check (aplicación está viva)
+Endpoints diseñados para health checks, readiness y liveness probes
+en ECS Fargate. Verifican conectividad a dependencias (DB, modelo).
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

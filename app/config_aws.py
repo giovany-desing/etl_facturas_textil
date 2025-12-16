@@ -1,6 +1,11 @@
 """
-Configuración específica para AWS
-Gestiona todas las variables de entorno relacionadas con servicios AWS
+Configuración AWS para arquitectura cloud-native.
+
+Este módulo gestiona settings específicos de servicios AWS utilizados
+en producción: ECS Fargate, Secrets Manager, S3, CloudWatch, MWAA.
+
+La configuración se carga desde variables de entorno con el prefijo AWS_
+y permite deployment en múltiples ambientes (dev, staging, production).
 """
 from pydantic_settings import BaseSettings
 from typing import Optional, List

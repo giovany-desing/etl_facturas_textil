@@ -1,7 +1,9 @@
-# 🏗️ Arquitectura AWS - Documentación Técnica
+# 🏗️ Arquitectura del Sistema - ETL Facturas Textiles
 
 ## 📋 Tabla de Contenidos
 
+- [Introducción](#introducción)
+- [Decisiones de Arquitectura](#decisiones-de-arquitectura)
 - [Diagrama de Arquitectura](#diagrama-de-arquitectura)
 - [Componentes Principales](#componentes-principales)
 - [Flujo de Datos](#flujo-de-datos)
@@ -10,7 +12,58 @@
 - [Escalabilidad](#escalabilidad)
 - [Alta Disponibilidad](#alta-disponibilidad)
 - [Monitoreo](#monitoreo)
-- [Decisiones de Arquitectura](#decisiones-de-arquitectura)
+
+---
+
+## Introducción
+
+Este documento describe la arquitectura cloud-native del sistema ETL de facturas, diseñada y construida sobre AWS desde el inicio.
+
+La arquitectura aprovecha servicios managed de AWS para minimizar overhead operacional mientras mantiene escalabilidad, seguridad y observabilidad.
+
+---
+
+## Decisiones de Arquitectura
+
+### Principios de Diseño
+
+1. **Serverless First**: Evitar gestión de servidores (ECS Fargate, MWAA, RDS)
+2. **Managed Services**: Preferir servicios AWS managed sobre self-hosted
+3. **Infrastructure as Code**: Todo definido en Terraform
+4. **Security by Design**: Secrets Manager, IAM roles, encryption
+5. **Observability**: CloudWatch para logs, métricas y alertas
+6. **Cost Optimization**: Auto-scaling, lifecycle policies, spot instances
+
+### Alternativas Consideradas
+
+**¿Por qué ECS Fargate sobre Kubernetes (EKS)?**
+
+- Menor complejidad operacional
+- No requiere gestión de nodos
+- Integración nativa con ALB y CloudWatch
+- Costo más predecible para este workload
+- Tiempo de setup más rápido
+
+**¿Por qué MWAA sobre Airflow self-hosted?**
+
+- AWS gestiona upgrades, patches, scaling
+- Alta disponibilidad out-of-the-box
+- Integración con IAM roles y Secrets Manager
+- Reduce trabajo operacional en ~70%
+
+**¿Por qué RDS MySQL sobre DynamoDB?**
+
+- Datos relacionales (facturas, productos)
+- Queries complejas con JOINs
+- Compatibilidad con herramientas SQL existentes
+- Transactions ACID requeridas
+
+**¿Por qué Terraform sobre CloudFormation?**
+
+- Multi-cloud capability (no vendor lock-in)
+- Sintaxis HCL más legible que JSON/YAML
+- Ecosistema de providers más amplio
+- State management superior
 
 ---
 
@@ -447,50 +500,6 @@ Scale In Cooldown: 300s
 | FastAPI High Memory | MemoryUtilization | > 85% | SNS notification |
 | ALB 5xx Errors | HTTPCode_Target_5XX_Count | > 10/min | SNS notification |
 | Target Unhealthy | HealthyHostCount | < desired | SNS notification |
-
----
-
-## Decisiones de Arquitectura
-
-### ✅ **Por qué ECS Fargate (no EC2)?**
-
-- **Sin gestión de servidores**: No patches, no updates
-- **Escalabilidad automática**: Ajuste según demanda
-- **Costo-efectivo**: Pay solo por recursos usados
-- **Seguridad**: Isolation por task
-
-### ✅ **Por qué MWAA (no Airflow self-hosted)?**
-
-- **Managed service**: Sin infraestructura que gestionar
-- **Alta disponibilidad**: Built-in redundancy
-- **Integración AWS**: Native con ECS, S3, Secrets Manager
-- **Escalabilidad**: Auto-scaling de workers
-
-### ✅ **Por qué RDS (no self-hosted MySQL)?**
-
-- **Backups automáticos**: Sin configuración adicional
-- **Multi-AZ**: Failover automático
-- **Monitoring**: CloudWatch integrado
-- **Patches**: Automáticos
-
-### ✅ **Por qué Secrets Manager (no env vars)?**
-
-- **Seguridad**: Encriptación, rotación automática
-- **Auditoría**: CloudTrail logs
-- **Integración**: ECS inyección automática
-- **Compliance**: Mejor para regulaciones
-
-### ✅ **Por qué VPC Endpoints?**
-
-- **Costo**: Reduce data transfer costs
-- **Seguridad**: Tráfico no sale de VPC
-- **Performance**: Menor latencia
-
-### ✅ **Por qué Multi-AZ?**
-
-- **Alta Disponibilidad**: Redundancia geográfica
-- **Disaster Recovery**: Failover automático
-- **Compliance**: Requisitos de algunos estándares
 
 ---
 

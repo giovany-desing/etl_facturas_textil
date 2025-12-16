@@ -1,5 +1,10 @@
-# Dockerfile optimizado para entrenamiento de modelos en AWS ECS Fargate con GPU
-# Basado en TensorFlow GPU para aprovechar aceleración hardware
+# Dockerfile para training tasks en ECS Fargate
+#
+# Incluye TensorFlow con soporte GPU y dependencias ML
+# Optimizado para:
+# - Training de modelos CNN
+# - Acceso a S3 para datasets
+# - Logging de métricas a CloudWatch
 FROM tensorflow/tensorflow:2.15.0-gpu
 
 # Metadatos

@@ -1,11 +1,14 @@
 """
-DAG de Airflow para detección de Data Drift - Versión AWS
+DAG de producción para detección de Data Drift en MWAA.
 
-ROL: Detectar cambios en la distribución de datos (drift) y activar reentrenamiento si es necesario.
-     - Extrae facturas de Drive (preventivos y correctivos)
-     - Compara distribuciones con datos de referencia
-     - Decide si activar reentrenamiento basado en drift detectado
-     - Dispara train_invoice_model_aws si se detecta drift
+Monitorea cambios en distribución de datos y activa reentrenamiento:
+- Compara distribuciones actuales vs baseline
+- Detecta drift estadísticamente significativo
+- Dispara reentrenamiento automático si es necesario
+- Integrado con CloudWatch para alertas
+
+Schedule: Domingos 3 AM (semanal)
+Owner: mlops-team
 """
 from datetime import datetime, timedelta
 from airflow import DAG

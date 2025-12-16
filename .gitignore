@@ -104,3 +104,83 @@ htmlcov/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# ========== LOCAL DEVELOPMENT ==========
+# Archivos de desarrollo local (no mostrar en portafolio)
+.local-dev/
+*local.yml
+*local.py
+docker-compose.airflow.yml
+
+# ========== TERRAFORM ==========
+# Terraform state y cache
+.terraform/
+*.tfstate
+.tfstate.*
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Terraform variables (pueden contener secrets)
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# ========== AWS & SECRETS ==========
+# Archivos de configuración con credenciales
+.env
+.env.*
+!.env.example
+!.env.aws.example
+credentials.json
+token.json
+service-account-key.json
+
+# ========== PYTHON ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========== TESTING ==========
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# ========== ML & DATA ==========
+# Datos grandes (usar DVC en su lugar)
+train_data/
+*.h5.backup
+*.npy.backup
+
+# ========== IDE ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========== DOCKER ==========
+docker-compose.override.yml
+
+# ========== LOGS ==========
+*.log
+logs/

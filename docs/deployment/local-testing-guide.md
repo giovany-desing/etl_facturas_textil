@@ -14,8 +14,11 @@
 
 ## Introducción
 
-Antes de desplegar a AWS, es recomendable probar localmente para:
+Esta guía describe cómo ejecutar el sistema localmente para desarrollo y testing antes de desplegar a AWS.
 
+El ambiente local simula los servicios AWS usando Docker Compose, permitiendo desarrollo rápido sin costos de cloud.
+
+**Casos de uso:**
 - ✅ Validar Dockerfiles
 - ✅ Probar cambios en código
 - ✅ Verificar integraciones
@@ -157,8 +160,8 @@ export AWS_ENDPOINT_URL=http://localhost:4566
 ./scripts/deployment/build-and-push-ecr.sh \
   --region us-east-1
 
-# Migrar secrets
-python3 scripts/migration/migrate-secrets.py \
+# Configurar secrets
+python3 scripts/setup/setup-secrets.py \
   --env .env \
   --region us-east-1
 ```
@@ -282,8 +285,8 @@ docker run --rm etl-facturas-fastapi:local which python
 ### 1. Testing con Dry-run
 
 ```bash
-# Migrar secretos (dry-run)
-python3 scripts/migration/migrate-secrets.py \
+# Configurar secretos (dry-run)
+python3 scripts/setup/setup-secrets.py \
   --env .env \
   --region us-east-1 \
   --dry-run

@@ -978,7 +978,14 @@ async def train_model(background_tasks: BackgroundTasks):
     
     logger.info(" Prerrequisitos verificados. Iniciando entrenamiento...")
 
-    # AWS Integration: Opción para lanzar ECS task en lugar de entrenamiento local
+    # Training distribuido en ECS Fargate.
+    #
+    # Cuando USE_AWS_ECS=true, el entrenamiento se ejecuta en tasks
+    # ECS Fargate con recursos dedicados (8 vCPU, 32GB RAM), permitiendo
+    # procesamiento paralelo y aislamiento de recursos.
+    #
+    # En desarrollo local, el entrenamiento corre sincrónicamente en el
+    # proceso actual (útil para debugging y testing rápido).
     USE_AWS_ECS = os.getenv("USE_AWS_ECS", "false").lower() == "true"
     
     if USE_AWS_ECS and AWS_AVAILABLE:
@@ -1043,12 +1050,12 @@ async def train_model(background_tasks: BackgroundTasks):
         except Exception as e:
             logger.error(f" Error lanzando ECS task: {e}", exc_info=True)
             logger.warning("  Fallback a entrenamiento local...")
-            # Continuar con entrenamiento local como fallback
+            # Modo desarrollo local (útil para testing)
             USE_AWS_ECS = False
     
-    # Entrenamiento local (lógica original)
+    # Entrenamiento local (modo desarrollo)
     if not USE_AWS_ECS:
-        logger.info("📦 Usando entrenamiento local (no ECS)")
+        logger.info("📦 Usando entrenamiento local (modo desarrollo)")
         training_status.update({
             "estado": "en_cola",
             "etapa_actual": "pendiente",

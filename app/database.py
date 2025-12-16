@@ -143,10 +143,15 @@ class TrackingEntrenamiento(Base):
 
 async def get_db_credentials_from_secrets_manager():
     """
-    Obtiene credenciales de MySQL desde AWS Secrets Manager
-    
+    Obtiene credenciales MySQL desde AWS Secrets Manager.
+
+    En producción (ECS), las credenciales se obtienen dinámicamente
+    desde Secrets Manager, evitando hardcodear passwords.
+
+    En desarrollo local, se lee desde .env (más práctico para testing).
+
     Returns:
-        dict: Diccionario con credenciales (user, password, host, database, port) o None si hay error
+        dict: Credenciales (username, password, host, database) o None
     """
     USE_SECRETS_MANAGER = os.getenv("USE_SECRETS_MANAGER", "false").lower() == "true"
     
@@ -209,10 +214,10 @@ _mysql_uri = settings.MYSQL_URI
 
 # Si USE_SECRETS_MANAGER está habilitado, se intentará obtener las credenciales
 # de forma asíncrona cuando sea necesario, pero para la inicialización del engine
-# usamos las credenciales de settings como fallback.
+# usamos las credenciales de settings (modo desarrollo local).
 if os.getenv("USE_SECRETS_MANAGER", "false").lower() == "true":
     logger.info("ℹ️  USE_SECRETS_MANAGER enabled - Credenciales se obtendrán desde Secrets Manager cuando sea necesario")
-    logger.info("   Usando credenciales de settings como fallback para inicialización")
+    logger.info("   Usando credenciales de settings (desarrollo local) para inicialización")
 
 engine = create_engine(
     _mysql_uri,

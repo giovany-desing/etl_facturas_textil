@@ -1,12 +1,14 @@
 """
-DAG de Airflow para procesamiento ETL de facturas con inferencia del modelo - Versión AWS
+DAG de producción para ETL de facturas en MWAA.
 
-ROL: Orquestar el flujo de ETL usando AWS ECS Fargate o ALB.
-     - Opción 1: Lanzar task ECS Fargate para procesamiento
-     - Opción 2: Llamar endpoint POST /procesar_facturas al ALB
-     - Monitorea el progreso hasta completar
-     - Maneja errores y notificaciones
-     - Limpia el estado al finalizar
+Orquesta el procesamiento completo de facturas usando ECS Fargate:
+- Descarga desde S3
+- Clasificación con modelo CNN
+- Extracción OCR
+- Carga a RDS MySQL
+
+Schedule: Cada hora
+Owner: data-team
 """
 from datetime import datetime, timedelta
 from airflow import DAG

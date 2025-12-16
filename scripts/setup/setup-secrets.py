@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Script para migrar secretos desde archivo .env a AWS Secrets Manager
+Script para configurar secretos en AWS Secrets Manager.
 
-Lee el archivo .env actual y crea/actualiza secretos en AWS Secrets Manager
-con el formato requerido por el proyecto.
+Este script lee credenciales locales (.env) y las configura
+en AWS Secrets Manager para uso en producción.
 """
 import argparse
 import logging
@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ========== SECRETOS A MIGRAR ==========
+# ========== SECRETOS A CONFIGURAR ==========
 SECRETS_CONFIG = {
     'textil/mysql/credentials': {
         'env_vars': ['MYSQL_USER', 'MYSQL_PASSWORD', 'MYSQL_HOST', 'MYSQL_DATABASE'],
@@ -151,7 +151,7 @@ def create_or_update_secret(
                 secrets_client.create_secret(
                     Name=secret_name,
                     SecretString=secret_string,
-                    Description=f"Secreto para {secret_name} - Migrado desde .env"
+                    Description=f"Secreto para {secret_name} - Configurado desde .env"
                 )
                 logger.info(f"✅ Secreto creado: {secret_name}")
             else:
@@ -169,14 +169,14 @@ def create_or_update_secret(
         return False
 
 
-def migrate_secrets(
+def setup_secrets(
     env_path: str,
     region: str,
     dry_run: bool = False,
     project_root: Optional[str] = None
 ) -> int:
     """
-    Migra secretos desde .env a AWS Secrets Manager
+    Configura secretos desde .env en AWS Secrets Manager
     
     Args:
         env_path: Ruta al archivo .env
@@ -185,7 +185,7 @@ def migrate_secrets(
         project_root: Ruta raíz del proyecto (para buscar archivos)
     
     Returns:
-        int: Número de secretos migrados exitosamente
+        int: Número de secretos configurados exitosamente
     """
     if project_root is None:
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -208,7 +208,7 @@ def migrate_secrets(
         logger.info("MODO DRY RUN - No se crearán/actualizarán secretos")
         logger.info("=" * 60)
     
-    migrated_count = 0
+    setup_count = 0
     
     # Procesar cada secreto configurado
     for secret_name, config in SECRETS_CONFIG.items():
@@ -249,17 +249,17 @@ def migrate_secrets(
         
         # Crear o actualizar secreto
         if create_or_update_secret(secrets_client, secret_name, secret_value, region, dry_run):
-            migrated_count += 1
+            setup_count += 1
         else:
-            logger.error(f"❌ Error migrando secreto: {secret_name}")
+            logger.error(f"❌ Error configurando secreto: {secret_name}")
     
-    return migrated_count
+    return setup_count
 
 
 def main():
     """Función principal"""
     parser = argparse.ArgumentParser(
-        description='Migra secretos desde .env a AWS Secrets Manager',
+        description='Configura secretos desde .env en AWS Secrets Manager',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
@@ -286,7 +286,7 @@ Ejemplos:
     parser.add_argument(
         '--dry-run',
         action='store_true',
-        help='Simular migración sin crear/actualizar secretos'
+        help='Simular setup sin crear/actualizar secretos'
     )
     
     parser.add_argument(
@@ -299,7 +299,7 @@ Ejemplos:
     args = parser.parse_args()
     
     logger.info("=" * 60)
-    logger.info("MIGRACIÓN DE SECRETOS A AWS SECRETS MANAGER")
+    logger.info("SETUP DE SECRETOS EN AWS SECRETS MANAGER")
     logger.info("=" * 60)
     logger.info(f"Archivo .env: {args.env}")
     logger.info(f"Región AWS: {args.region}")
@@ -311,8 +311,8 @@ Ejemplos:
         logger.error(f"Archivo .env no encontrado: {args.env}")
         sys.exit(1)
     
-    # Migrar secretos
-    migrated_count = migrate_secrets(
+    # Configurar secretos
+    setup_count = setup_secrets(
         env_path=args.env,
         region=args.region,
         dry_run=args.dry_run,
@@ -322,13 +322,13 @@ Ejemplos:
     logger.info("")
     logger.info("=" * 60)
     if args.dry_run:
-        logger.info(f"DRY RUN completado: {migrated_count} secretos procesados")
+        logger.info(f"DRY RUN completado: {setup_count} secretos procesados")
     else:
-        logger.info(f"Migración completada: {migrated_count} secretos migrados exitosamente")
+        logger.info(f"Setup completado: {setup_count} secretos configurados exitosamente")
     logger.info("=" * 60)
     
-    if migrated_count == 0:
-        logger.warning("No se migró ningún secreto. Revisa los logs anteriores.")
+    if setup_count == 0:
+        logger.warning("No se configuró ningún secreto. Revisa los logs anteriores.")
         sys.exit(1)
     
     sys.exit(0)

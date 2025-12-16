@@ -1,4 +1,4 @@
-# 🚀 ETL Facturas - Guía de Migración a AWS
+# 🚀 ETL Facturas Textiles - Sistema MLOps Cloud-Native en AWS
 
 ## 📋 Tabla de Contenidos
 
@@ -8,32 +8,38 @@
 - [Servicios AWS Utilizados](#servicios-aws-utilizados)
 - [Costos Estimados](#costos-estimados)
 - [Prerequisites](#prerequisites)
-- [Quick Start Guide](#quick-start-guide)
+- [Deployment desde Cero](#deployment-desde-cero)
 - [Variables de Entorno](#variables-de-entorno)
 - [Troubleshooting Común](#troubleshooting-común)
 - [Documentación Detallada](#documentación-detallada)
+- [Highlights del Proyecto](#highlights-del-proyecto)
 - [Contacto y Soporte](#contacto-y-soporte)
 
 ---
 
 ## Introducción
 
-Este proyecto es un sistema de **ETL (Extract, Transform, Load)** y **MLOps** para procesamiento automatizado de facturas. La migración a AWS permite:
+Sistema ETL empresarial con Machine Learning integrado, construido sobre AWS utilizando arquitectura serverless y mejores prácticas cloud-native.
 
-- ✅ **Escalabilidad**: Auto-scaling según demanda
-- ✅ **Alta Disponibilidad**: Multi-AZ deployment
-- ✅ **Seguridad**: IAM roles, Secrets Manager, encryption
-- ✅ **Monitoreo**: CloudWatch logs, metrics, alarms
-- ✅ **CI/CD**: GitHub Actions + ECR + ECS
-- ✅ **Costo-efectividad**: Pay-as-you-go, optimización de recursos
+**Características principales:**
 
-### ¿Por qué migrar a AWS?
+- ✅ **Procesamiento automatizado** de facturas con clasificación ML
+- ✅ **Orquestación** con Apache Airflow (MWAA)
+- ✅ **Infrastructure as Code** con Terraform (~2,300 líneas)
+- ✅ **CI/CD completo** con GitHub Actions
+- ✅ **Serverless** con ECS Fargate (0 gestión de servidores)
+- ✅ **Monitoreo** integrado con CloudWatch
+- ✅ **Alta disponibilidad** Multi-AZ
 
-- **Infraestructura como Código**: Terraform para reproducibilidad
-- **Containerización**: Docker + ECS Fargate (sin gestión de servidores)
-- **Orquestación**: MWAA (Managed Workflows for Apache Airflow)
-- **Observabilidad**: CloudWatch integrado
-- **Compliance**: Certificaciones AWS (SOC, ISO, etc.)
+### Arquitectura Cloud-Native
+
+Sistema diseñado desde cero para aprovechar servicios AWS managed:
+
+- **Serverless**: Sin gestión de servidores (ECS Fargate)
+- **Managed Services**: MWAA, RDS, Secrets Manager
+- **Auto-scaling**: Escalamiento automático basado en demanda
+- **Infrastructure as Code**: 100% reproducible con Terraform
+- **Cost-Optimized**: Pay-per-use, lifecycle policies
 
 ---
 
@@ -60,6 +66,22 @@ Este proyecto es un sistema de **ETL (Extract, Transform, Load)** y **MLOps** pa
 │  └──────────────┘    └──────────────┘    └──────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Decisiones de Diseño
+
+**¿Por qué ECS Fargate y no EKS?**
+
+- Menor complejidad operacional
+- Serverless (no gestión de nodos)
+- Más económico para este use case
+- Integración nativa con ALB
+
+**¿Por qué MWAA y no Airflow self-hosted?**
+
+- Managed service (AWS gestiona upgrades, patches)
+- Alta disponibilidad out-of-the-box
+- Integración con IAM y Secrets Manager
+- Menos overhead operacional
 
 ### Componentes Principales
 
@@ -211,7 +233,17 @@ aws sts get-caller-identity
 
 ---
 
-## Quick Start Guide
+## 🚀 Deployment desde Cero
+
+Desplegar la infraestructura completa en AWS en ~45 minutos.
+
+**Prerequisites:**
+
+- AWS Account con permisos administrativos
+- AWS CLI configurado
+- Terraform >= 1.0
+- Docker instalado
+- Git
 
 ### Paso 1: Clonar y Configurar
 ```bash
@@ -225,7 +257,8 @@ cp .env.aws.example .env.aws
 
 ### Paso 2: Configurar Secrets
 ```bash
-# Migrar secretos a Secrets Manager
+# Configurar secretos en Secrets Manager desde variables de entorno
+# El script crea/actualiza secretos usando credenciales del archivo .env
 python3 scripts/setup/setup-secrets.py \
   --env .env \
   --region us-east-1
@@ -389,9 +422,45 @@ aws elbv2 describe-target-health \
 |-----------|-------------|
 | [Arquitectura AWS](docs/architecture/aws-architecture.md) | Arquitectura técnica detallada |
 | [Guía de Deployment](docs/deployment/deployment-guide.md) | Paso a paso para deployment |
-| [Testing Local](docs/deployment/local-testing-guide.md) | Testing antes de AWS |
+| [Testing Local](docs/deployment/local-testing-guide.md) | Testing local con Docker Compose |
 | [Incident Response](docs/runbooks/incident-response.md) | Troubleshooting y runbooks |
 | [Scaling Guide](docs/runbooks/scaling-guide.md) | Cómo escalar recursos |
+
+---
+
+## 🎯 Highlights del Proyecto
+
+### Métricas Técnicas
+
+- **~12,000 líneas** de código (IaC + aplicación + tests)
+- **2,300+ líneas** de Terraform (75+ recursos AWS)
+- **2,600+ líneas** de documentación
+- **1,800+ líneas** de scripts de automation
+- **1,200+ líneas** de workflows CI/CD
+
+### Arquitectura
+
+- **100% Infrastructure as Code** (Terraform)
+- **Serverless** compute (ECS Fargate)
+- **Multi-AZ** deployment
+- **Auto-scaling** automático
+- **Zero-downtime** deployments
+
+### MLOps
+
+- **Custom CNN** para clasificación (TensorFlow)
+- **MLflow** para experiment tracking
+- **DVC** para model versioning
+- **Data drift detection** automático
+- **Reentrenamiento** on-demand o scheduled
+
+### DevOps
+
+- **CI/CD** completo (GitHub Actions)
+- **Automated testing** (pytest + coverage)
+- **Docker** multi-stage builds
+- **Monitoring** completo (CloudWatch)
+- **Alerting** con Slack integration
 
 ---
 
@@ -426,4 +495,19 @@ aws elbv2 describe-target-health \
 
 **Última actualización**: Diciembre 2024  
 **Versión**: 2.0.0
+
+---
+
+## 🎓 Proyecto Portfolio
+
+Este proyecto demuestra capacidades en:
+
+- ✅ Diseño de arquitecturas cloud escalables
+- ✅ Infrastructure as Code (Terraform)
+- ✅ MLOps end-to-end
+- ✅ Containerización y orquestación
+- ✅ CI/CD automation
+- ✅ AWS best practices
+
+**Tecnologías:** AWS (ECS, MWAA, RDS, S3, CloudWatch, Secrets Manager), Terraform, Python, FastAPI, TensorFlow, Apache Airflow, Docker, GitHub Actions
 

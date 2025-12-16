@@ -1,9 +1,15 @@
-# 🚀 Guía de Deployment a AWS
+# 🚀 Guía de Deployment - Infraestructura desde Cero
+
+Esta guía describe el proceso completo para desplegar la infraestructura y aplicación en AWS desde cero.
+
+**Tiempo estimado:** 45-60 minutos  
+**Nivel:** Intermedio-Avanzado  
+**Costo:** ~$500-1000/mes (environment de producción)
 
 ## 📋 Tabla de Contenidos
 
 - [Sección 1: Prerequisites](#sección-1-prerequisites)
-- [Sección 2: Preparación](#sección-2-preparación)
+- [Sección 2: Setup Inicial](#sección-2-setup-inicial)
 - [Sección 3: Infraestructura (Terraform)](#sección-3-infraestructura-terraform)
 - [Sección 4: Deployment de Aplicación](#sección-4-deployment-de-aplicación)
 - [Sección 5: Post-deployment](#sección-5-post-deployment)
@@ -103,7 +109,7 @@ python3 --version && echo "✅ Python OK" || echo "❌ Python missing"
 
 ---
 
-## Sección 2: Preparación
+## Sección 2: Setup Inicial
 
 ### 2.1 Configurar Variables de Entorno
 
@@ -142,8 +148,8 @@ MYSQL_USER=samaca
 ### 2.2 Crear Secrets en Secrets Manager
 
 ```bash
-# Migrar secretos desde .env
-python3 scripts/migration/migrate-secrets.py \
+# Configurar secretos desde .env
+python3 scripts/setup/setup-secrets.py \
   --env .env \
   --region us-east-1
 

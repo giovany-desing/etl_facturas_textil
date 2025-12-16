@@ -26,7 +26,7 @@ def setup_logger(name: str = "etl_facturas") -> logging.Logger:
     return logger
 
 
-# Función legacy para compatibilidad
+# Función auxiliar para compatibilidad
 def logs():
     """Función para compatibilidad con código original"""
     return setup_logger()

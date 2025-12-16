@@ -335,7 +335,15 @@ def entrenar_modelo():
             import asyncio
             
             async def send_cloudwatch_metrics():
-                """Función async helper para enviar métricas a CloudWatch"""
+                """
+                Envío de métricas de entrenamiento a CloudWatch.
+
+                En producción, las métricas se envían a CloudWatch para:
+                - Monitoreo en tiempo real
+                - Alertas automáticas
+                - Dashboards centralizados
+                - Auditoría de entrenamientos
+                """
                 try:
                     async with CloudWatchLogger() as cw_logger:
                         # Enviar métricas principales

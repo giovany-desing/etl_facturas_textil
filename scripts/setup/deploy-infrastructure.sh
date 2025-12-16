@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Script maestro para migración completa a AWS
+# Script maestro para deployment completo en AWS
 # Ejecuta todos los pasos necesarios para desplegar en AWS
 #
 
@@ -19,14 +19,14 @@ function help() {
     cat << EOF
 Uso: $0 [OPTIONS]
 
-Script maestro para migración completa del proyecto a AWS.
+Script maestro para deployment completo del proyecto en AWS desde cero.
 
 Opciones:
     -r, --region REGION       Región AWS (default: us-east-1)
     -c, --cluster CLUSTER     Nombre del cluster ECS (default: etl-facturas-cluster)
     --skip-build              Saltar build y push de imágenes ECR
     --skip-terraform          Saltar terraform apply
-    --skip-secrets            Saltar migración de secretos
+    --skip-secrets            Saltar setup de secretos
     --skip-deploy             Saltar deployment de servicios ECS
     --skip-dags               Saltar sync de DAGs a S3
     --env-file FILE           Ruta al archivo .env (default: .env)
@@ -96,15 +96,15 @@ function check_prerequisites() {
     return 0
 }
 
-function confirm_migration() {
+function confirm_deployment() {
     log_warning "=========================================="
-    log_warning "MIGRACIÓN A AWS - CONFIRMACIÓN"
+    log_warning "DEPLOYMENT A AWS - CONFIRMACIÓN"
     log_warning "=========================================="
     log_warning "Este script realizará las siguientes acciones:"
     log_warning ""
     [ "$SKIP_BUILD" != "true" ] && log_warning "  ✓ Build y push de imágenes a ECR"
     [ "$SKIP_TERRAFORM" != "true" ] && log_warning "  ✓ Terraform apply (crear recursos AWS)"
-    [ "$SKIP_SECRETS" != "true" ] && log_warning "  ✓ Migración de secretos a Secrets Manager"
+    [ "$SKIP_SECRETS" != "true" ] && log_warning "  ✓ Setup de secretos en Secrets Manager"
     [ "$SKIP_DEPLOY" != "true" ] && log_warning "  ✓ Deployment de servicios ECS"
     [ "$SKIP_DAGS" != "true" ] && log_warning "  ✓ Sync de DAGs a S3 para MWAA"
     log_warning ""
@@ -112,10 +112,10 @@ function confirm_migration() {
     log_warning "Cluster: $CLUSTER_NAME"
     log_warning "=========================================="
     echo ""
-    read -p "¿Continuar con la migración? (yes/no): " CONFIRM
+    read -p "¿Continuar con el deployment? (yes/no): " CONFIRM
     
     if [ "$CONFIRM" != "yes" ]; then
-        log_info "Migración cancelada por el usuario"
+        log_info "Deployment cancelado por el usuario"
         exit 0
     fi
 }
@@ -135,7 +135,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Archivo de log
-LOG_FILE="$PROJECT_ROOT/migration-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="$PROJECT_ROOT/deployment-$(date +%Y%m%d-%H%M%S).log"
 
 # Parsear argumentos
 while [[ $# -gt 0 ]]; do
@@ -186,7 +186,7 @@ done
 
 # ========== INICIO ==========
 log_info "=========================================="
-log_info "MIGRACIÓN A AWS - INICIANDO"
+log_info "DEPLOYMENT A AWS - INICIANDO"
 log_info "=========================================="
 log_info "Región: $AWS_REGION"
 log_info "Cluster: $CLUSTER_NAME"
@@ -203,7 +203,7 @@ if ! check_prerequisites; then
 fi
 
 # Confirmación del usuario
-confirm_migration
+confirm_deployment
 
 # ========== PASO 1: BUILD Y PUSH ECR ==========
 if [ "$SKIP_BUILD" != "true" ]; then
@@ -249,30 +249,30 @@ else
     log_info "Saltando Terraform (--skip-terraform)"
 fi
 
-# ========== PASO 3: MIGRAR SECRETOS ==========
+# ========== PASO 3: SETUP SECRETOS ==========
 if [ "$SKIP_SECRETS" != "true" ]; then
-    log_step "3/5: Migración de secretos a Secrets Manager"
+    log_step "3/5: Setup de secretos en Secrets Manager"
     
-    MIGRATE_SECRETS_SCRIPT="$SCRIPT_DIR/migrate-secrets.py"
-    if [ ! -f "$MIGRATE_SECRETS_SCRIPT" ]; then
-        log_error "Script de migración de secretos no encontrado: $MIGRATE_SECRETS_SCRIPT"
+    SETUP_SECRETS_SCRIPT="$SCRIPT_DIR/setup-secrets.py"
+    if [ ! -f "$SETUP_SECRETS_SCRIPT" ]; then
+        log_error "Script de setup de secretos no encontrado: $SETUP_SECRETS_SCRIPT"
         exit 1
     fi
     
     ENV_PATH="$PROJECT_ROOT/$ENV_FILE"
     if [ ! -f "$ENV_PATH" ]; then
         log_warning "Archivo .env no encontrado: $ENV_PATH"
-        log_warning "Saltando migración de secretos..."
+        log_warning "Saltando setup de secretos..."
     else
-        if python3 "$MIGRATE_SECRETS_SCRIPT" --env "$ENV_PATH" --region "$AWS_REGION"; then
-            log_success "Migración de secretos completada"
+        if python3 "$SETUP_SECRETS_SCRIPT" --env "$ENV_PATH" --region "$AWS_REGION"; then
+            log_success "Setup de secretos completado"
         else
-            log_error "Error en migración de secretos"
+            log_error "Error en setup de secretos"
             exit 1
         fi
     fi
 else
-    log_info "Saltando migración de secretos (--skip-secrets)"
+    log_info "Saltando setup de secretos (--skip-secrets)"
 fi
 
 # ========== PASO 4: DEPLOY SERVICIOS ECS ==========
@@ -351,7 +351,7 @@ fi
 
 # ========== FINALIZACIÓN ==========
 log_success "=========================================="
-log_success "MIGRACIÓN A AWS COMPLETADA EXITOSAMENTE"
+log_success "DEPLOYMENT A AWS COMPLETADO EXITOSAMENTE"
 log_success "=========================================="
 log_info "Log guardado en: $LOG_FILE"
 log_info ""

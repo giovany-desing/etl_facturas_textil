@@ -1,11 +1,14 @@
 """
-DAG de Airflow para entrenamiento del modelo con CI/CD - Versión AWS
+DAG de producción para entrenamiento de modelo en MWAA.
 
-ROL: Ejecutar la fase de entrenamiento usando AWS ECS Fargate.
-     - Lanza task ECS Fargate para entrenamiento (CPU: 8192, Memory: 32768)
-     - Monitorea el progreso hasta completar
-     - Valida resultados del entrenamiento (F1 > 0.85)
-     - Notifica resultados
+Ejecuta entrenamiento distribuido en ECS Fargate:
+- Task dedicada con recursos optimizados (8 vCPU, 32GB RAM)
+- Validación de resultados (F1 > 0.85)
+- Tracking en MLflow
+- Notificaciones de resultados
+
+Schedule: Bajo demanda (trigger manual o desde drift detection)
+Owner: mlops-team
 """
 from datetime import datetime, timedelta
 from airflow import DAG
