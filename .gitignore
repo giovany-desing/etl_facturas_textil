@@ -184,3 +184,8 @@ docker-compose.override.yml
 # ========== LOGS ==========
 *.log
 logs/
+
+# ========== CARPETAS ELIMINADAS ==========
+# Carpetas eliminadas (no recrear)
+.local-dev/
+infrastructure/cloudformation/
