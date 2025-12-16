@@ -1,0 +1,51 @@
+{
+  "serviceName": "mlflow-service",
+  "cluster": "etl-facturas-cluster",
+  "taskDefinition": "mlflow-server",
+  "desiredCount": 1,
+  "launchType": "FARGATE",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "SUBNET_ID_1",
+        "SUBNET_ID_2"
+      ],
+      "securityGroups": [
+        "SG_ID"
+      ],
+      "assignPublicIp": "ENABLED"
+    }
+  },
+  "healthCheckGracePeriodSeconds": 60,
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 50,
+    "deploymentCircuitBreaker": {
+      "enable": true,
+      "rollback": true
+    }
+  },
+  "enableExecuteCommand": true,
+  "serviceRegistries": [
+    {
+      "registryArn": "arn:aws:servicediscovery:us-east-1:ACCOUNT_ID:service/REPLACE_WITH_SERVICE_DISCOVERY_ID",
+      "containerName": "mlflow",
+      "containerPort": 5001
+    }
+  ],
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Service",
+      "value": "mlflow"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "terraform"
+    }
+  ]
+}
+

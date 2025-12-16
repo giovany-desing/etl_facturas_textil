@@ -1,0 +1,87 @@
+{
+  "family": "model-training",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "8192",
+  "memory": "32768",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "trainer",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/model-training:latest",
+      "essential": true,
+      "command": [
+        "python",
+        "app/model.py"
+      ],
+      "environment": [
+        {
+          "name": "ENV",
+          "value": "production"
+        },
+        {
+          "name": "TRAIN_BATCH_SIZE",
+          "value": "16"
+        },
+        {
+          "name": "TRAIN_EPOCHS",
+          "value": "50"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "S3_BUCKET_NAME",
+          "value": "mes-en-curso"
+        },
+        {
+          "name": "S3_BUCKET_MODELOS",
+          "value": "textil-modelos"
+        },
+        {
+          "name": "MLFLOW_TRACKING_URI",
+          "value": "http://mlflow.internal:5001"
+        },
+        {
+          "name": "BASE_DIR",
+          "value": "/app"
+        },
+        {
+          "name": "MODELS_DIR",
+          "value": "modelos"
+        },
+        {
+          "name": "LOG_LEVEL",
+          "value": "INFO"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MYSQL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:textil/mysql/credentials:password::"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:textil/aws/credentials:access_key_id::"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:textil/aws/credentials:secret_access_key::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/model-training",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "training"
+        }
+      }
+    }
+  ]
+}
+

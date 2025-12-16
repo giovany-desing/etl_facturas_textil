@@ -1,0 +1,22 @@
+# ========== AWS INTEGRATION ==========
+# Dependencias adicionales para integración con servicios AWS
+
+# AWS SDK (async support)
+aioboto3==12.3.0
+
+# AWS SDK (sync)
+boto3==1.34.0
+botocore==1.34.0
+
+# Airflow AWS Provider
+apache-airflow-providers-amazon==8.15.0
+
+# AWS X-Ray for distributed tracing
+aws-xray-sdk==2.12.0
+
+# CloudWatch Logs handler
+watchtower==3.0.1
+
+# AWS Secrets Manager caching
+aws-secretsmanager-caching==1.1.1.5
+

@@ -1,0 +1,14 @@
+# ========== TESTING ==========
+# Dependencias para desarrollo y testing
+# Estas dependencias NO se instalan en producción
+
+pytest
+pytest-cov
+pytest-asyncio
+
+# Mock AWS services for testing
+moto
+
+# HTTP client for testing
+httpx
+

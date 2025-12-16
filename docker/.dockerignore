@@ -1,0 +1,90 @@
+# Git
+.git
+.github
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+
+# Virtual environments
+venv
+.venv
+env
+.env
+.env.*
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Documentation
+docs/
+*.md
+README.md
+CHANGELOG.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (si hay frontend)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Logs
+*.log
+logs/
+
+# Data directories (no incluir datos grandes en imagen)
+data/
+train_data/
+invoices_train/
+invoices_test/
+prev/
+corr/
+mes en curso/
+
+# DVC
+.dvc
+*.dvc
+.dvcignore
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Airflow
+airflow/
+airflow-logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Modelos grandes (se descargan desde S3)
+# modelos/*.h5
+# modelos/*.npy
+

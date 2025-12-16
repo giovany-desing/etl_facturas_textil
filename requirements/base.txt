@@ -1,0 +1,65 @@
+# ========== WEB FRAMEWORK ==========
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# ========== DATABASE ==========
+mysql-connector-python
+SQLAlchemy
+alembic
+pymysql
+
+# ========== MACHINE LEARNING ==========
+tensorflow
+scikit-learn
+numpy
+pandas
+scipy
+
+# ========== MODEL SERVING ==========
+# bentoml  # No se usa en el proyecto
+
+# ========== MLFLOW ==========
+mlflow
+
+# ========== GOOGLE CLOUD ==========
+google-cloud-storage
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+
+# ========== IMAGE PROCESSING ==========
+opencv-python-headless
+Pillow
+pdf2image
+pytesseract
+
+# ========== DATA PROCESSING ==========
+openpyxl
+
+# ========== AIRFLOW ==========
+apache-airflow
+apache-airflow-providers-google
+apache-airflow-providers-http
+apache-airflow-providers-slack
+
+# ========== DATA QUALITY ==========
+great-expectations
+
+# ========== MONITORING & ALERTS ==========
+slack-sdk
+
+# ========== UTILITIES ==========
+python-dotenv
+python-multipart
+requests
+
+# ========== DVC (Data Version Control) ==========
+dvc
+dvc[s3]
+
+# ========== AWS S3 ==========
+boto3
+

@@ -1,0 +1,35 @@
+{
+  "ServiceNamespace": "ecs",
+  "ResourceId": "service/etl-facturas-cluster/fastapi-service",
+  "ScalableDimension": "ecs:service:DesiredCount",
+  "MinCapacity": 2,
+  "MaxCapacity": 10,
+  "RoleARN": "arn:aws:iam::ACCOUNT_ID:role/aws-ecs-autoscaling-role",
+  "TargetTrackingScalingPolicies": [
+    {
+      "PolicyName": "fastapi-cpu-scaling-policy",
+      "PolicyType": "TargetTrackingScaling",
+      "TargetTrackingScalingPolicyConfiguration": {
+        "TargetValue": 70.0,
+        "PredefinedMetricSpecification": {
+          "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+        },
+        "ScaleInCooldown": 300,
+        "ScaleOutCooldown": 60
+      }
+    },
+    {
+      "PolicyName": "fastapi-memory-scaling-policy",
+      "PolicyType": "TargetTrackingScaling",
+      "TargetTrackingScalingPolicyConfiguration": {
+        "TargetValue": 80.0,
+        "PredefinedMetricSpecification": {
+          "PredefinedMetricType": "ECSServiceAverageMemoryUtilization"
+        },
+        "ScaleInCooldown": 300,
+        "ScaleOutCooldown": 60
+      }
+    }
+  ]
+}
+

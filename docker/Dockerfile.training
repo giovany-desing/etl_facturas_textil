@@ -1,0 +1,50 @@
+# Dockerfile optimizado para entrenamiento de modelos en AWS ECS Fargate con GPU
+# Basado en TensorFlow GPU para aprovechar aceleración hardware
+FROM tensorflow/tensorflow:2.15.0-gpu
+
+# Metadatos
+LABEL maintainer="ETL Facturas Team"
+LABEL version="2.0.0"
+LABEL description="Model training service for ETL Facturas - GPU optimized for AWS ECS"
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Instalar dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copiar requirements
+COPY requirements/base.txt requirements/aws.txt ./
+
+# Instalar dependencias de Python
+# Nota: TensorFlow ya está instalado en la imagen base
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r base.txt -r aws.txt
+
+# Copiar código de la aplicación
+COPY app/ /app/app/
+COPY modelos/ /app/modelos/
+
+# Crear directorios necesarios
+RUN mkdir -p /app/data /app/logs /app/train_data
+
+# Crear usuario no-root para seguridad
+RUN useradd -m -u 1000 trainer && \
+    chown -R trainer:trainer /app
+
+USER trainer
+
+# Comando para ejecutar entrenamiento
+CMD ["python", "app/model.py"]
+

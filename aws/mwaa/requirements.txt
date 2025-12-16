@@ -1,0 +1,19 @@
+# ========== MWAA (Managed Workflows for Apache Airflow) ==========
+# Dependencias específicas para ejecutar DAGs en AWS MWAA
+# Estas dependencias deben ser compatibles con las versiones soportadas por MWAA
+
+# Apache Airflow con soporte Amazon
+apache-airflow[amazon]==2.8.1
+
+# Airflow AWS Provider
+apache-airflow-providers-amazon==8.15.0
+
+# Airflow HTTP Provider
+apache-airflow-providers-http==4.7.0
+
+# HTTP requests
+requests==2.31.0
+
+# SQLAlchemy (requerido por Airflow)
+sqlalchemy==1.4.51
+

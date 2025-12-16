@@ -1,0 +1,46 @@
+# Dockerfile optimizado para MLflow Tracking Server en AWS ECS
+# Minimalista - solo dependencias necesarias para MLflow
+FROM python:3.11-slim
+
+# Metadatos
+LABEL maintainer="ETL Facturas Team"
+LABEL version="2.0.0"
+LABEL description="MLflow Tracking Server for ETL Facturas - AWS ECS optimized"
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MLFLOW_BACKEND_STORE_URI="" \
+    MLFLOW_ARTIFACT_ROOT=""
+
+WORKDIR /app
+
+# Instalar solo dependencias esenciales para MLflow
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    mlflow==2.9.2 \
+    boto3 \
+    pymysql \
+    cryptography
+
+# Crear directorio para artifacts (si se usa filesystem local)
+RUN mkdir -p /app/mlartifacts
+
+# Crear usuario no-root para seguridad
+RUN useradd -m -u 1000 mlflow && \
+    chown -R mlflow:mlflow /app
+
+USER mlflow
+
+# Exponer puerto
+EXPOSE 5001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/health').read()" || exit 1
+
+# Comando para ejecutar MLflow server
+# Usa variables de entorno para configuración flexible
+CMD sh -c "mlflow server --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} --default-artifact-root ${MLFLOW_ARTIFACT_ROOT} --host 0.0.0.0 --port 5001"
+

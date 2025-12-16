@@ -1,0 +1,80 @@
+# Dockerfile optimizado para FastAPI en AWS ECS
+# Multi-stage build para reducir tamaño final
+FROM python:3.11-slim as builder
+
+# Metadatos
+LABEL maintainer="ETL Facturas Team"
+LABEL version="2.0.0"
+LABEL description="FastAPI service for ETL Facturas - AWS ECS optimized"
+
+# Variables de entorno para Python
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema necesarias para compilar paquetes Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar e instalar requirements
+COPY requirements/base.txt requirements/aws.txt ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r base.txt -r aws.txt
+
+# ========== STAGE 2: Runtime ==========
+FROM python:3.11-slim
+
+# Metadatos
+LABEL maintainer="ETL Facturas Team"
+LABEL version="2.0.0"
+LABEL description="FastAPI service for ETL Facturas - AWS ECS optimized"
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema de runtime (sin compiladores)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copiar dependencias Python instaladas desde builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copiar código de la aplicación
+COPY app/ /app/app/
+COPY modelos/ /app/modelos/
+
+# Crear directorios necesarios
+RUN mkdir -p /app/data /app/logs
+
+# Crear usuario no-root para seguridad
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+# Exponer puerto
+EXPOSE 8000
+
+# Health check para ALB de AWS
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Comando para ejecutar FastAPI con múltiples workers
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+

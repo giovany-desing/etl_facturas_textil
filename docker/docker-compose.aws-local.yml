@@ -1,0 +1,134 @@
+# Docker Compose para testing local que simula el ambiente AWS ECS
+# Usa los Dockerfiles optimizados para AWS
+# Útil para probar la aplicación antes de desplegar a ECS
+
+services:
+  # ========== MySQL Database (LOCAL) ==========
+  # Base de datos local para testing
+  mysql:
+    image: mysql:8.0
+    container_name: facturas-mysql-aws-local
+    restart: unless-stopped
+    environment:
+      # Credenciales para MySQL local
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: facturas_db
+      MYSQL_USER: facturas_user
+      MYSQL_PASSWORD: facturas_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-aws-local-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - facturas-aws-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ========== MLflow Tracking Server ==========
+  mlflow:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mlflow
+    image: facturas-mlflow:aws-local
+    container_name: facturas-mlflow-aws-local
+    restart: unless-stopped
+    environment:
+      # Backend store: MySQL local
+      MLFLOW_BACKEND_STORE_URI: mysql+pymysql://facturas_user:facturas_pass@mysql:3306/mlflow
+      # Artifact root: S3 (simulado con filesystem local para testing)
+      MLFLOW_ARTIFACT_ROOT: file:///app/mlartifacts
+      # Alternativa: usar S3 real si está configurado
+      # MLFLOW_ARTIFACT_ROOT: s3://textil-mlflow-artifacts
+    ports:
+      - "5001:5001"
+    volumes:
+      - mlflow-aws-local-artifacts:/app/mlartifacts
+    networks:
+      - facturas-aws-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ========== FastAPI Application ==========
+  fastapi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fastapi
+    image: facturas-fastapi:aws-local
+    container_name: facturas-fastapi-aws-local
+    restart: unless-stopped
+    env_file:
+      - ../.env  # Cargar variables de entorno desde .env
+    environment:
+      # MySQL RDS (para datos de negocio) - usar variables del .env o valores por defecto
+      MYSQL_HOST: ${MYSQL_HOST:-textil.cof2oucystyr.us-east-1.rds.amazonaws.com}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-samaca}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Mirringa2020}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-textil}
+      
+      # MLflow
+      MLFLOW_TRACKING_URI: http://mlflow:5001
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-facturas_classification}
+      
+      # Google Cloud (si está configurado)
+      GOOGLE_CREDENTIALS_PATH: /app/credentials.json
+      
+      # AWS (para S3 y otros servicios)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-mes-en-curso}
+      
+      # Configuración general
+      DEBUG: ${DEBUG:-False}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      BASE_DIR: /app
+    ports:
+      - "8000:8000"
+    volumes:
+      # Código (montar para desarrollo, comentar en producción)
+      - ../app:/app/app:ro
+      - ../modelos:/app/modelos:rw
+      
+      # Credenciales (si existen)
+      - ../credentials.json:/app/credentials.json:ro
+      - ../token.json:/app/token.json:rw
+    networks:
+      - facturas-aws-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# ========== Networks ==========
+networks:
+  facturas-aws-network:
+    driver: bridge
+    name: facturas-aws-network
+
+# ========== Volumes (datos persistentes) ==========
+volumes:
+  mysql-aws-local-data:
+    name: facturas-mysql-aws-local-data
+  mlflow-aws-local-artifacts:
+    name: facturas-mlflow-aws-local-artifacts
+
